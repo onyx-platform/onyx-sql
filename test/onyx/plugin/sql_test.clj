@@ -1,11 +1,13 @@
 (ns onyx.plugin.sql-test
   (:require [clojure.data.fressian :as fressian]
+            [clojure.java.jdbc :as jdbc]
             [midje.sweet :refer :all]
             [onyx.plugin.sql]
             [onyx.api])
   (:import [org.hornetq.api.core.client HornetQClient]
            [org.hornetq.api.core TransportConfiguration HornetQQueueExistsException]
-           [org.hornetq.core.remoting.impl.netty NettyConnectorFactory]))
+           [org.hornetq.core.remoting.impl.netty NettyConnectorFactory]
+           [com.mchange.v2.c3p0 ComboPooledDataSource]))
 
 (defn create-queue [session queue-name]
   (try
@@ -37,6 +39,46 @@
       (.close session)
 
       @results)))
+
+(def db-spec
+  {:classname "com.mysql.jdbc.Driver"
+   :subprotocol "mysql"
+   :subname "//127.0.0.1:3306/onyx_test"
+   :user "root"
+   :password "root"})
+
+(defn pool [spec]
+  {:datasource
+   (doto (ComboPooledDataSource.)
+     (.setDriverClass (:classname spec))
+     (.setJdbcUrl (str "jdbc:" (:subprotocol spec) ":" (:subname spec)))
+     (.setUser (:user spec))
+     (.setPassword (:password spec))
+     (.setMaxIdleTimeExcessConnections (* 30 60))
+     (.setMaxIdleTime (* 3 60 60)))})
+
+(def conn-pool (pool db-spec))
+
+(jdbc/execute! conn-pool ["drop database onyx_test"])
+(jdbc/execute! conn-pool ["create database onyx_test"])
+(jdbc/execute! conn-pool ["use onyx_test"])
+
+(jdbc/execute!
+ conn-pool
+ (vector (jdbc/create-table-ddl
+          :people
+          [:id :int "PRIMARY KEY AUTO_INCREMENT"]
+          [:name "VARCHAR(32)"])))
+
+(def people
+  ["Mike"
+   "Dorrene"
+   "Benti"
+   "Kristen"
+   "Derek"])
+
+(doseq [person people]
+  (jdbc/insert! conn-pool :people {:name person}))
 
 (def hornetq-host "localhost")
 
@@ -70,11 +112,15 @@
     :onyx/medium :sql
     :onyx/consumption :sequential
     :onyx/bootstrap? true
-    :sql/host "localhost"
-    :sql/port 1000
-    :sql/protocol "mysql"
+    :sql/classname "com.mysql.jdbc.Driver"
+    :sql/subprotocol "mysql"
+    :sql/subname "//127.0.0.1:3306/onyx_test"
+    :sql/user "root"
+    :sql/password "root"
     :sql/table "people"
-    :sql/column "id"
+    :sql/id "id"
+    :sql/lower-bound 1
+    :sql/upper-bound 1000
     :sql/partition-size 1000
     :onyx/doc "Partitions a range of primary keys into subranges"}
 
@@ -84,13 +130,13 @@
     :onyx/type :transformer
     :onyx/consumption :concurrent
     :onyx/batch-size 1000
-    :sql/host "localhost"
-    :sql/port 1000
-    :sql/username "root"
+    :sql/classname "com.mysql.jdbc.Driver"
+    :sql/subprotocol "mysql"
+    :sql/subname "//127.0.0.1:3306/onyx_test"
+    :sql/user "root"
     :sql/password "root"
-    :sql/protocol "mysql"
     :sql/table "people"
-    :sql/column "id"
+    :sql/id "id"    
     :onyx/doc "Reads rows of a SQL table bounded by a key range"}
 
    {:onyx/name :capitalize
