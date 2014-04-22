@@ -14,31 +14,44 @@
      (.setMaxIdleTimeExcessConnections (* 30 60))
      (.setMaxIdleTime (* 3 60 60)))})
 
-(defmethod p-ext/inject-pipeline-resources
-  :sql/load-rows
-  [{:keys [task-map] :as pipeline}]
+(defn task->pool [task-map]
   (let [db-spec {:classname (:sql/classname task-map)
                  :subprotocol (:sql/subprotocol task-map)
                  :subname (:sql/subname task-map)
                  :user (:sql/user task-map)
                  :password (:sql/password task-map)}]
-    {:params [(create-pool db-spec)]}))
+    (create-pool db-spec)))
+
+(defmethod p-ext/inject-pipeline-resources
+  :sql/load-rows
+  [{:keys [task-map] :as pipeline}]
+  {:params [(task->pool task-map)]})
 
 (defmethod p-ext/apply-fn
   {:onyx/type :database
    :onyx/direction :input
    :onyx/medium :sql}
   [{:keys [task-map] :as pipeline}]
-  (let [db-spec {:classname (:sql/classname task-map)
-                 :subprotocol (:sql/subprotocol task-map)
-                 :subname (:sql/subname task-map)
-                 :user (:sql/user task-map)
-                 :password (:sql/password task-map)}
-        pool (create-pool db-spec)
+  (let [pool (task->pool task-map)
         sql-map {:select [:%count.*] :from [(:sql/table task-map)]}
-        n (:count (jdbc/execute! (sql/format sql-map)))
-        ranges (partition-all 2 1 (range (:sql/lower-bound task-map)
-                                         (:sql/upper-bound task-map)
+        n ((keyword "count(*)") (first (jdbc/query pool (sql/format sql-map))))
+        ranges (partition-all 2 1 (range (or (:sql/lower-bound task-map) 1)
+                                         (or (:sql/upper-bound task-map) n)
                                          (:sql/partition-size task-map)))]
-    (map (fn [[l h]] {:low l :high (dec (or h (inc (:sql/upper-bound task-map))))}) ranges)))
+    {:results
+     (map (fn [[l h]]
+            {:low l
+             :high (dec (or h (inc (or (:sql/upper-bound task-map) n))))
+             :table (:sql/table task-map)
+             :id (:sql/id task-map)})
+          ranges)}))
+
+(defn load-rows [pool {:keys [table id low high] :as segment}]
+  (let [sql-map {:select [:*]
+                 :from [table]
+                 :where [:and
+                         [:>= id low]
+                         [:<= id high]]}]
+    {:rows (jdbc/query pool (sql/format sql-map))}))
+
 

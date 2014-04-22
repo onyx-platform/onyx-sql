@@ -40,6 +40,9 @@
 
       @results)))
 
+(defn capitalize [{:keys [rows] :as segment}]
+  (map (fn [{:keys [name] :as row}] (assoc row :name (clojure.string/upper-case name))) rows))
+
 (def db-spec
   {:classname "com.mysql.jdbc.Driver"
    :subprotocol "mysql"
@@ -117,10 +120,8 @@
     :sql/subname "//127.0.0.1:3306/onyx_test"
     :sql/user "root"
     :sql/password "root"
-    :sql/table "people"
-    :sql/id "id"
-    :sql/lower-bound 1
-    :sql/upper-bound 1000
+    :sql/table :people
+    :sql/id :id
     :sql/partition-size 1000
     :onyx/doc "Partitions a range of primary keys into subranges"}
 
@@ -135,8 +136,8 @@
     :sql/subname "//127.0.0.1:3306/onyx_test"
     :sql/user "root"
     :sql/password "root"
-    :sql/table "people"
-    :sql/id "id"    
+    :sql/table :people
+    :sql/id :id
     :onyx/doc "Reads rows of a SQL table bounded by a key range"}
 
    {:onyx/name :capitalize
@@ -176,9 +177,10 @@
   (catch Exception e (prn e)))
 
 (fact results
-      => [{:id 1 :name "MIKE"}
-          {:id 2 :name "DORRENE"}
-          {:id 3 :name "BENTI"}
-          {:id 4 :name "DEREK"}
-          {:id 5 :name "KRISTEN"}])
+      => [[{:id 1 :name "MIKE"}
+           {:id 2 :name "DORRENE"}
+           {:id 3 :name "BENTI"}
+           {:id 4 :name "KRISTEN"}
+           {:id 5 :name "DEREK"}]
+          :done])
 
