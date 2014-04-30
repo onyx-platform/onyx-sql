@@ -2,43 +2,13 @@
   (:require [clojure.data.fressian :as fressian]
             [clojure.java.jdbc :as jdbc]
             [midje.sweet :refer :all]
+            [onyx.queue.hornetq-utils :as hq-util]
             [onyx.plugin.sql]
             [onyx.api])
   (:import [org.hornetq.api.core.client HornetQClient]
            [org.hornetq.api.core TransportConfiguration HornetQQueueExistsException]
            [org.hornetq.core.remoting.impl.netty NettyConnectorFactory]
            [com.mchange.v2.c3p0 ComboPooledDataSource]))
-
-(defn create-queue [session queue-name]
-  (try
-    (.createQueue session queue-name queue-name true)
-    (catch Exception e)))
-
-(defn consume-queue! [config queue-name echo]
-  (let [tc (TransportConfiguration. (.getName NettyConnectorFactory) config)
-        locator (HornetQClient/createServerLocatorWithoutHA (into-array [tc]))
-        session-factory (.createSessionFactory locator)
-        session (.createTransactedSession session-factory)]
-
-    (create-queue session queue-name)
-
-    (let [consumer (.createConsumer session queue-name)
-          results (atom [])]
-      (.start session)
-      (while (not= (last @results) :done)
-        (when (zero? (mod (count @results) echo))
-          (prn (format "[HQ Util] Read %s segments" (count @results))))
-        (let [message (.receive consumer)]
-          (when message
-            (.acknowledge message)
-            (swap! results conj (fressian/read (.toByteBuffer (.getBodyBuffer message)))))))
-
-      (prn "[HQ Util] Done reading")
-      (.commit session)
-      (.close consumer)
-      (.close session)
-
-      @results)))
 
 (defn capitalize [{:keys [rows] :as segment}]
   (map (fn [{:keys [name] :as row}] (assoc row :name (clojure.string/upper-case name))) rows))
@@ -165,7 +135,7 @@
 
 (onyx.api/submit-job conn {:catalog catalog :workflow workflow})
 
-(def results (consume-queue! hq-config out-queue 1))
+(def results (hq-util/consume-queue! hq-config out-queue 1))
 
 (doseq [v-peer v-peers]
   (try
