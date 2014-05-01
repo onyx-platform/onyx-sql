@@ -1,6 +1,5 @@
 (ns onyx.plugin.sql-test
-  (:require [clojure.data.fressian :as fressian]
-            [clojure.java.jdbc :as jdbc]
+  (:require [clojure.java.jdbc :as jdbc]
             [midje.sweet :refer :all]
             [onyx.queue.hornetq-utils :as hq-util]
             [onyx.plugin.sql]
