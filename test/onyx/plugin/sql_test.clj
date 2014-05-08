@@ -17,7 +17,7 @@
    :subprotocol "mysql"
    :subname "//127.0.0.1:3306/onyx_test"
    :user "root"
-   :password "root"})
+   :password "password"})
 
 (defn pool [spec]
   {:datasource
@@ -79,8 +79,7 @@
 (def catalog
   [{:onyx/name :partition-keys
     :onyx/ident :sql/partition-keys
-    :onyx/direction :input
-    :onyx/type :database
+    :onyx/type :input
     :onyx/medium :sql
     :onyx/consumption :sequential
     :onyx/bootstrap? true
@@ -118,10 +117,9 @@
 
    {:onyx/name :persist
     :onyx/ident :hornetq/write-segments
-    :onyx/direction :output
-    :onyx/consumption :concurrent
-    :onyx/type :queue
+    :onyx/type :output
     :onyx/medium :hornetq
+    :onyx/consumption :concurrent
     :hornetq/queue-name out-queue
     :hornetq/host hornetq-host
     :hornetq/port hornetq-port

@@ -27,10 +27,7 @@
   [{:keys [task-map] :as pipeline}]
   {:params [(task->pool task-map)]})
 
-(defmethod p-ext/apply-fn
-  {:onyx/type :database
-   :onyx/direction :input
-   :onyx/medium :sql}
+(defmethod p-ext/apply-fn [:input :sql]
   [{:keys [task-map] :as pipeline}]
   (let [pool (task->pool task-map)
         sql-map {:select [:%count.*] :from [(:sql/table task-map)]}
@@ -53,5 +50,4 @@
                          [:>= id low]
                          [:<= id high]]}]
     {:rows (jdbc/query pool (sql/format sql-map))}))
-
 
