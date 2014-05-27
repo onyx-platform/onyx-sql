@@ -90,7 +90,7 @@
     :sql/password "root"
     :sql/table :people
     :sql/id :id
-    :sql/partition-size 1000
+    :onyx/batch-size 1000
     :onyx/doc "Partitions a range of primary keys into subranges"}
 
    {:onyx/name :load-rows

@@ -34,7 +34,7 @@
         n ((keyword "count(*)") (first (jdbc/query pool (sql/format sql-map))))
         ranges (partition-all 2 1 (range (or (:sql/lower-bound task-map) 1)
                                          (or (:sql/upper-bound task-map) n)
-                                         (:sql/partition-size task-map)))]
+                                         (:onyx/batch-size task-map)))]
     {:results
      (map (fn [[l h]]
             {:low l
