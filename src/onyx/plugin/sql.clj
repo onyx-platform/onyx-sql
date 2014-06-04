@@ -24,7 +24,7 @@
 
 (defmethod p-ext/inject-pipeline-resources
   :sql/load-rows
-  [{:keys [task-map] :as pipeline}]
+  [_ {:keys [task-map] :as pipeline}]
   {:params [(task->pool task-map)]})
 
 (defmethod p-ext/apply-fn [:input :sql]
