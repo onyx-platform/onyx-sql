@@ -1,7 +1,7 @@
 (ns onyx.plugin.sql
   (:require [honeysql.core :as sql]
             [clojure.java.jdbc :as jdbc]
-            [onyx.peer.pipeline-extensions :as p-ext])
+            [onyx.peer.task-lifecycle-extensions :as l-ext])
   (:import [com.mchange.v2.c3p0 ComboPooledDataSource]))
 
 (defn create-pool [spec]
@@ -22,12 +22,12 @@
                  :password (:sql/password task-map)}]
     (create-pool db-spec)))
 
-(defmethod p-ext/inject-pipeline-resources
+(defmethod l-ext/inject-lifecycle-resources
   :sql/load-rows
   [_ {:keys [task-map] :as pipeline}]
   {:params [(task->pool task-map)]})
 
-(defmethod p-ext/apply-fn [:input :sql]
+(defmethod l-ext/apply-fn [:input :sql]
   [{:keys [task-map] :as pipeline}]
   (let [pool (task->pool task-map)
         sql-map {:select [:%count.*] :from [(:sql/table task-map)]}
