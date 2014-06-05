@@ -10,7 +10,8 @@
            [com.mchange.v2.c3p0 ComboPooledDataSource]))
 
 (defn capitalize [{:keys [rows] :as segment}]
-  (map (fn [{:keys [name] :as row}] (assoc row :name (clojure.string/upper-case name))) rows))
+  (map (fn [{:keys [name] :as row}]
+         (assoc row :name (clojure.string/upper-case name))) rows))
 
 (def db-spec
   {:classname "com.mysql.jdbc.Driver"
@@ -87,7 +88,7 @@
     :sql/subprotocol "mysql"
     :sql/subname "//127.0.0.1:3306/onyx_test"
     :sql/user "root"
-    :sql/password "root"
+    :sql/password "password"
     :sql/table :people
     :sql/id :id
     :sql/rows-per-segment 1000
@@ -104,7 +105,7 @@
     :sql/subprotocol "mysql"
     :sql/subname "//127.0.0.1:3306/onyx_test"
     :sql/user "root"
-    :sql/password "root"
+    :sql/password "password"
     :sql/table :people
     :sql/id :id
     :onyx/doc "Reads rows of a SQL table bounded by a key range"}
@@ -145,10 +146,10 @@
   (catch Exception e (prn e)))
 
 (fact results
-      => [[{:id 1 :name "MIKE"}
-           {:id 2 :name "DORRENE"}
-           {:id 3 :name "BENTI"}
-           {:id 4 :name "KRISTEN"}
-           {:id 5 :name "DEREK"}]
+      => [{:id 1 :name "MIKE"}
+          {:id 2 :name "DORRENE"}
+          {:id 3 :name "BENTI"}
+          {:id 4 :name "KRISTEN"}
+          {:id 5 :name "DEREK"}
           :done])
 
