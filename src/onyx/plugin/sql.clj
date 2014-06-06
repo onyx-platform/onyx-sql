@@ -23,7 +23,7 @@
     (create-pool db-spec)))
 
 (defmethod l-ext/inject-lifecycle-resources
-  :sql/load-rows
+  :sql/read-rows
   [_ {:keys [onyx.core/task-map] :as pipeline}]
   {:onyx.core/params [(task->pool task-map)]})
 
@@ -48,7 +48,7 @@
              :id (:sql/id task-map)})
           ranges)}))
 
-(defn load-rows [pool {:keys [table id low high] :as segment}]
+(defn read-rows [pool {:keys [table id low high] :as segment}]
   (let [sql-map {:select [:*]
                  :from [table]
                  :where [:and

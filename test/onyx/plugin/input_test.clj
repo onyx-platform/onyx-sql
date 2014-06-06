@@ -88,7 +88,7 @@
                 :zk-addr "127.0.0.1:2181"
                 :onyx-id id})
 
-(def workflow {:partition-keys {:load-rows {:capitalize :persist}}})
+(def workflow {:partition-keys {:read-rows {:capitalize :persist}}})
 
 (def catalog
   [{:onyx/name :partition-keys
@@ -108,9 +108,9 @@
     :onyx/batch-size 1000
     :onyx/doc "Partitions a range of primary keys into subranges"}
 
-   {:onyx/name :load-rows
-    :onyx/ident :sql/load-rows
-    :onyx/fn :onyx.plugin.sql/load-rows
+   {:onyx/name :read-rows
+    :onyx/ident :sql/read-rows
+    :onyx/fn :onyx.plugin.sql/read-rows
     :onyx/type :transformer
     :onyx/consumption :concurrent
     :onyx/batch-size 1000
