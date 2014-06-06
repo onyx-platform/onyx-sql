@@ -1,6 +1,7 @@
-(ns onyx.plugin.sql-test
+(ns onyx.plugin.output-test
   (:require [clojure.java.jdbc :as jdbc]
             [midje.sweet :refer :all]
+            [honeysql.core :as sql]
             [onyx.queue.hornetq-utils :as hq-util]
             [onyx.plugin.sql]
             [onyx.api])
@@ -9,14 +10,13 @@
            [org.hornetq.core.remoting.impl.netty NettyConnectorFactory]
            [com.mchange.v2.c3p0 ComboPooledDataSource]))
 
-(defn capitalize [{:keys [rows] :as segment}]
-  (map (fn [{:keys [name] :as row}]
-         (assoc row :name (clojure.string/upper-case name))) rows))
+(defn transform [{:keys [word] :as segment}]
+  {:rows [{:word word}]})
 
 (def db-spec
   {:classname "com.mysql.jdbc.Driver"
    :subprotocol "mysql"
-   :subname "//127.0.0.1:3306/onyx_test"
+   :subname "//127.0.0.1:3306"
    :user "root"
    :password "password"})
 
@@ -32,26 +32,36 @@
 
 (def conn-pool (pool db-spec))
 
-(jdbc/execute! conn-pool ["drop database onyx_test"])
-(jdbc/execute! conn-pool ["create database onyx_test"])
-(jdbc/execute! conn-pool ["use onyx_test"])
+(try
+  (jdbc/execute! conn-pool ["drop database onyx_output_test"])
+  (catch Exception e
+    (.printStackTrace e)))
+
+(jdbc/execute! conn-pool ["create database onyx_output_test"])
+(jdbc/execute! conn-pool ["use onyx_output_test"])
+
+(def db-spec
+  {:classname "com.mysql.jdbc.Driver"
+   :subprotocol "mysql"
+   :subname "//127.0.0.1:3306/onyx_output_test"
+   :user "root"
+   :password "password"})
+
+(def conn-pool (pool db-spec))
 
 (jdbc/execute!
  conn-pool
  (vector (jdbc/create-table-ddl
-          :people
+          :words
           [:id :int "PRIMARY KEY AUTO_INCREMENT"]
-          [:name "VARCHAR(32)"])))
+          [:word "VARCHAR(32)"])))
 
-(def people
-  ["Mike"
-   "Dorrene"
-   "Benti"
-   "Kristen"
-   "Derek"])
-
-(doseq [person people]
-  (jdbc/insert! conn-pool :people {:name person}))
+(def words
+  [{:word "Cat"}
+   {:word "Orange"}
+   {:word "Pan"}
+   {:word "Door"}
+   {:word "Surf board"}])
 
 (def hornetq-host "localhost")
 
@@ -59,7 +69,9 @@
 
 (def hq-config {"host" hornetq-host "port" hornetq-port})
 
-(def out-queue (str (java.util.UUID/randomUUID)))
+(def in-queue (str (java.util.UUID/randomUUID)))
+
+(hq-util/write-and-cap! hq-config in-queue words 1)
 
 (def id (str (java.util.UUID/randomUUID)))
 
@@ -75,58 +87,39 @@
                 :zk-addr "127.0.0.1:2181"
                 :onyx-id id})
 
-(def workflow {:partition-keys {:load-rows {:capitalize :persist}}})
+(def workflow {:input {:transform :output}})
 
 (def catalog
-  [{:onyx/name :partition-keys
-    :onyx/ident :sql/partition-keys
+  [{:onyx/name :input
+    :onyx/ident :hornetq/read-segments
     :onyx/type :input
-    :onyx/medium :sql
-    :onyx/consumption :sequential
-    :onyx/bootstrap? true
-    :sql/classname "com.mysql.jdbc.Driver"
-    :sql/subprotocol "mysql"
-    :sql/subname "//127.0.0.1:3306/onyx_test"
-    :sql/user "root"
-    :sql/password "password"
-    :sql/table :people
-    :sql/id :id
-    :sql/rows-per-segment 1000
-    :onyx/batch-size 1000
-    :onyx/doc "Partitions a range of primary keys into subranges"}
-
-   {:onyx/name :load-rows
-    :onyx/ident :sql/load-rows
-    :onyx/fn :onyx.plugin.sql/load-rows
-    :onyx/type :transformer
-    :onyx/consumption :concurrent
-    :onyx/batch-size 1000
-    :sql/classname "com.mysql.jdbc.Driver"
-    :sql/subprotocol "mysql"
-    :sql/subname "//127.0.0.1:3306/onyx_test"
-    :sql/user "root"
-    :sql/password "password"
-    :sql/table :people
-    :sql/id :id
-    :onyx/doc "Reads rows of a SQL table bounded by a key range"}
-
-   {:onyx/name :capitalize
-    :onyx/fn :onyx.plugin.sql-test/capitalize
-    :onyx/type :transformer
-    :onyx/consumption :concurrent
-    :onyx/batch-size 1000
-    :onyx/doc "Capitilizes the :name key"}
-
-   {:onyx/name :persist
-    :onyx/ident :hornetq/write-segments
-    :onyx/type :output
     :onyx/medium :hornetq
     :onyx/consumption :concurrent
-    :hornetq/queue-name out-queue
+    :hornetq/queue-name in-queue
     :hornetq/host hornetq-host
     :hornetq/port hornetq-port
+    :onyx/batch-size 1000}
+
+   {:onyx/name :transform
+    :onyx/fn :onyx.plugin.output-test/transform
+    :onyx/type :transformer
+    :onyx/consumption :concurrent
     :onyx/batch-size 1000
-    :onyx/doc "Output source for intermediate query results"}])
+    :onyx/doc "Transforms a segment to prepare for SQL persistence"}
+
+   {:onyx/name :output
+    :onyx/ident :sql/write-rows
+    :onyx/type :output
+    :onyx/medium :sql
+    :onyx/consumption :concurrent
+    :sql/classname "com.mysql.jdbc.Driver"
+    :sql/subprotocol "mysql"
+    :sql/subname "//127.0.0.1:3306/onyx_output_test"
+    :sql/user "root"
+    :sql/password "password"
+    :sql/table :words
+    :onyx/batch-size 1000
+    :onyx/doc "Writes segments from the :rows keys to the SQL database"}])
 
 (def conn (onyx.api/connect (str "onyx:memory//localhost/" id) coord-opts))
 
@@ -134,7 +127,14 @@
 
 (onyx.api/submit-job conn {:catalog catalog :workflow workflow})
 
-(def results (hq-util/consume-queue! hq-config out-queue 1))
+;; TODO: Remove when Onyx API for job completion is finished.
+(Thread/sleep 6000)
+
+(def sql-map {:select [:*] :from [:words]})
+
+(def results (jdbc/query conn-pool (sql/format sql-map)))
+
+(fact results => (map-indexed (fn [k x] (assoc x :id (inc k))) words))
 
 (doseq [v-peer v-peers]
   (try
@@ -145,11 +145,4 @@
   (onyx.api/shutdown conn)
   (catch Exception e (prn e)))
 
-(fact results
-      => [{:id 1 :name "MIKE"}
-          {:id 2 :name "DORRENE"}
-          {:id 3 :name "BENTI"}
-          {:id 4 :name "KRISTEN"}
-          {:id 5 :name "DEREK"}
-          :done])
 

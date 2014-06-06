@@ -27,6 +27,11 @@
   [_ {:keys [onyx.core/task-map] :as pipeline}]
   {:onyx.core/params [(task->pool task-map)]})
 
+(defmethod l-ext/inject-lifecycle-resources
+  :sql/write-rows
+  [_ {:keys [onyx.core/task-map] :as pipeline}]
+  {:sql/pool (task->pool task-map)})
+
 (defmethod l-ext/apply-fn [:input :sql]
   [{:keys [onyx.core/task-map] :as pipeline}]
   (let [pool (task->pool task-map)
@@ -50,4 +55,19 @@
                          [:>= id low]
                          [:<= id high]]}]
     {:rows (jdbc/query pool (sql/format sql-map))}))
+
+(defmethod l-ext/apply-fn [:output :sql]
+  [_]
+  {})
+
+(defmethod l-ext/compress-batch [:output :sql]
+  [{:keys [onyx.core/decompressed] :as pipeline}]
+  {:onyx.core/compressed decompressed})
+
+(defmethod l-ext/write-batch [:output :sql]
+  [{:keys [onyx.core/compressed onyx.core/task-map sql/pool] :as pipeline}]
+  (doseq [segment compressed]
+    (doseq [row (:rows segment)]
+      (jdbc/insert! pool (:sql/table task-map) row)))
+  {:onyx.core/written? true})
 
