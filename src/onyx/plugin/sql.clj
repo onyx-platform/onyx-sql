@@ -23,6 +23,11 @@
     (create-pool db-spec)))
 
 (defmethod l-ext/inject-lifecycle-resources
+  :sql/partition-keys
+  [_ {:keys [onyx.core/task-map] :as pipeline}]
+  {:sql/pool (task->pool task-map)})
+
+(defmethod l-ext/inject-lifecycle-resources
   :sql/read-rows
   [_ {:keys [onyx.core/task-map] :as pipeline}]
   (let [pool (task->pool task-map)]
@@ -33,6 +38,12 @@
   :sql/write-rows
   [_ {:keys [onyx.core/task-map] :as pipeline}]
   {:sql/pool (task->pool task-map)})
+
+(defmethod l-ext/close-lifecycle-resources
+  :sql/partition-keys
+  [_ {:keys [sql/pool] :as pipeline}]
+  (.close (:datasource pool))
+  {})
 
 (defmethod l-ext/close-lifecycle-resources
   :sql/read-rows
@@ -47,9 +58,8 @@
   {})
 
 (defmethod l-ext/apply-fn [:input :sql]
-  [{:keys [onyx.core/task-map] :as pipeline}]
-  (let [pool (task->pool task-map)
-        sql-map {:select [:%count.*] :from [(:sql/table task-map)]}
+  [{:keys [onyx.core/task-map sql/pool] :as pipeline}]
+  (let [sql-map {:select [:%count.*] :from [(:sql/table task-map)]}
         n ((keyword "count(*)") (first (jdbc/query pool (sql/format sql-map))))
         ranges (partition-all 2 1 (range (or (:sql/lower-bound task-map) 1)
                                          (or (:sql/upper-bound task-map) n)
