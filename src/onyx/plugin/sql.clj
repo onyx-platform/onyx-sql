@@ -90,8 +90,10 @@
 
 (defmethod l-ext/write-batch [:output :sql]
   [{:keys [onyx.core/compressed onyx.core/task-map sql/pool] :as pipeline}]
-  (doseq [segment compressed]
-    (doseq [row (:rows segment)]
-      (jdbc/insert! pool (:sql/table task-map) row)))
+  (jdbc/with-db-transaction
+    [conn pool]
+    (doseq [segment compressed]
+      (doseq [row (:rows segment)]
+        (jdbc/insert! conn (:sql/table task-map) row))))
   {:onyx.core/written? true})
 
