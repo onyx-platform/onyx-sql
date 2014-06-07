@@ -25,12 +25,26 @@
 (defmethod l-ext/inject-lifecycle-resources
   :sql/read-rows
   [_ {:keys [onyx.core/task-map] :as pipeline}]
-  {:onyx.core/params [(task->pool task-map)]})
+  (let [pool (task->pool task-map)]
+    {:sql/pool pool
+     :onyx.core/params [pool]}))
 
 (defmethod l-ext/inject-lifecycle-resources
   :sql/write-rows
   [_ {:keys [onyx.core/task-map] :as pipeline}]
   {:sql/pool (task->pool task-map)})
+
+(defmethod l-ext/close-lifecycle-resources
+  :sql/read-rows
+  [_ {:keys [sql/pool] :as pipeline}]
+  (.close (:datasource pool))
+  {})
+
+(defmethod l-ext/close-lifecycle-resources
+  :sql/write-rows
+  [_ {:keys [sql/pool] :as pipeline}]
+  (.close (:datasource pool))
+  {})
 
 (defmethod l-ext/apply-fn [:input :sql]
   [{:keys [onyx.core/task-map] :as pipeline}]

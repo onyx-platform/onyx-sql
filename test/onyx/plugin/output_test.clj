@@ -128,13 +128,11 @@
 (onyx.api/submit-job conn {:catalog catalog :workflow workflow})
 
 ;; TODO: Remove when Onyx API for job completion is finished.
-(Thread/sleep 6000)
+(Thread/sleep 5000)
 
 (def sql-map {:select [:*] :from [:words]})
 
 (def results (jdbc/query conn-pool (sql/format sql-map)))
-
-(fact results => (map-indexed (fn [k x] (assoc x :id (inc k))) words))
 
 (doseq [v-peer v-peers]
   (try
@@ -145,4 +143,5 @@
   (onyx.api/shutdown conn)
   (catch Exception e (prn e)))
 
+(fact results => (map-indexed (fn [k x] (assoc x :id (inc k))) words))
 
