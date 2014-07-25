@@ -1,7 +1,8 @@
 (ns onyx.plugin.sql
   (:require [honeysql.core :as sql]
             [clojure.java.jdbc :as jdbc]
-            [onyx.peer.task-lifecycle-extensions :as l-ext])
+            [onyx.peer.task-lifecycle-extensions :as l-ext]
+            [onyx.peer.pipeline-extensions :as p-ext])
   (:import [com.mchange.v2.c3p0 ComboPooledDataSource]))
 
 (defn create-pool [spec]
@@ -57,7 +58,7 @@
   (.close (:datasource pool))
   {})
 
-(defmethod l-ext/apply-fn [:input :sql]
+(defmethod p-ext/apply-fn [:input :sql]
   [{:keys [onyx.core/task-map sql/pool] :as pipeline}]
   (let [sql-map {:select [:%count.*] :from [(:sql/table task-map)]}
         n ((keyword "count(*)") (first (jdbc/query pool (sql/format sql-map))))
@@ -80,15 +81,15 @@
                          [:<= id high]]}]
     {:rows (jdbc/query pool (sql/format sql-map))}))
 
-(defmethod l-ext/apply-fn [:output :sql]
+(defmethod p-ext/apply-fn [:output :sql]
   [_]
   {})
 
-(defmethod l-ext/compress-batch [:output :sql]
+(defmethod p-ext/compress-batch [:output :sql]
   [{:keys [onyx.core/decompressed] :as pipeline}]
   {:onyx.core/compressed decompressed})
 
-(defmethod l-ext/write-batch [:output :sql]
+(defmethod p-ext/write-batch [:output :sql]
   [{:keys [onyx.core/compressed onyx.core/task-map sql/pool] :as pipeline}]
   (jdbc/with-db-transaction
     [conn pool]
