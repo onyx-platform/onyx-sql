@@ -129,11 +129,9 @@
 
 (def v-peers (onyx.api/start-peers conn 1 peer-opts))
 
-(onyx.api/submit-job conn {:catalog catalog :workflow workflow})
+(def job-id (onyx.api/submit-job conn {:catalog catalog :workflow workflow}))
 
-;; TODO: Remove when Onyx API for job completion is finished.
-;; API call for this is finished, drop it in place.
-(Thread/sleep 5000)
+@(onyx.api/await-job-completion conn (str job-id))
 
 (def sql-map {:select [:*] :from [:words]})
 
