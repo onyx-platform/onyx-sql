@@ -1,4 +1,4 @@
-(defproject com.mdrogalis/onyx-sql "0.3.1-SNAPSHOT"
+(defproject com.mdrogalis/onyx-sql "0.3.1"
   :description "Onyx plugin for JDBC-backed SQL databases"
   :url "https://github.com/MichaelDrogalis/onyx-sql"
   :license {:name "Eclipse Public License"
