@@ -45,7 +45,7 @@ In your peer boot-up namespace:
 {:onyx/name :load-rows
  :onyx/ident :sql/load-rows
  :onyx/fn :onyx.plugin.sql/load-rows
- :onyx/type :transformer
+ :onyx/type :function
  :onyx/consumption :concurrent
  :sql/classname "com.my.jdbc.Driver"
  :sql/subprotocol "my-subprotocol"

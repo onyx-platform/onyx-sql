@@ -116,7 +116,7 @@
    {:onyx/name :read-rows
     :onyx/ident :sql/read-rows
     :onyx/fn :onyx.plugin.sql/read-rows
-    :onyx/type :transformer
+    :onyx/type :function
     :onyx/consumption :concurrent
     :onyx/batch-size 1000
     :sql/classname "com.mysql.jdbc.Driver"
@@ -130,7 +130,7 @@
 
    {:onyx/name :capitalize
     :onyx/fn :onyx.plugin.input-test/capitalize
-    :onyx/type :transformer
+    :onyx/type :function
     :onyx/consumption :concurrent
     :onyx/batch-size 1000
     :onyx/doc "Capitilizes the :name key"}
