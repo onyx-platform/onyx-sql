@@ -106,7 +106,7 @@
 
    {:onyx/name :transform
     :onyx/fn :onyx.plugin.output-test/transform
-    :onyx/type :transformer
+    :onyx/type :function
     :onyx/consumption :concurrent
     :onyx/batch-size 1000
     :onyx/doc "Transforms a segment to prepare for SQL persistence"}
