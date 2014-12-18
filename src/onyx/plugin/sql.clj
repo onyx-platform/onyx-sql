@@ -79,7 +79,7 @@
                  :where [:and
                          [:>= id low]
                          [:<= id high]]}]
-    {:rows (jdbc/query pool (sql/format sql-map))}))
+    (jdbc/query pool (sql/format sql-map))))
 
 (defmethod p-ext/apply-fn [:output :sql]
   [_]

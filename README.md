@@ -25,7 +25,7 @@ In your peer boot-up namespace:
  :onyx/ident :sql/partition-keys
  :onyx/type :input
  :onyx/medium :sql
- :onyx/consumption :sequential
+ :onyx/consumption :concurrent
  :onyx/bootstrap? true
  :sql/classname "com.my.jdbc.Driver"
  :sql/subprotocol "my-subprotocol"
@@ -36,24 +36,25 @@ In your peer boot-up namespace:
  :sql/id :id-column
  :sql/rows-per-segment n
  :onyx/batch-size batch-size
+ :onyx/max-peers 1
  :onyx/doc "Partitions a range of primary keys into subranges"}
 ```
 
-##### load-rows
+##### read-rows
 
 ```clojure
-{:onyx/name :load-rows
- :onyx/ident :sql/load-rows
- :onyx/fn :onyx.plugin.sql/load-rows
+{:onyx/name :read-rows
+ :onyx/ident :sql/read-rows
+ :onyx/fn :onyx.plugin.sql/read-rows
  :onyx/type :function
  :onyx/consumption :concurrent
  :sql/classname "com.my.jdbc.Driver"
  :sql/subprotocol "my-subprotocol"
  :sql/subname "//my.sub.name:3306/db"
- :sql/user "user"
- :sql/password "password"
- :sql/table :table-name
- :sql/id :id-column
+ :sql/user "my-root"
+ :sql/password "my-password"
+ :sql/table :my-table-name
+ :sql/id :my-id-column
  :onyx/batch-size batch-size
  :onyx/doc "Reads rows of a SQL table bounded by a key range"}
 ```

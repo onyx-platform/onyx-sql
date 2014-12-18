@@ -34,9 +34,8 @@
 
 (def env (component/start dev))
 
-(defn capitalize [{:keys [rows] :as segment}]
-  (map (fn [{:keys [name] :as row}]
-         (assoc row :name (clojure.string/upper-case name))) rows))
+(defn capitalize [segment]
+  (update-in segment [:name] clojure.string/upper-case))
 
 (def db-spec
   {:classname "com.mysql.jdbc.Driver"
@@ -111,7 +110,7 @@
     :onyx/ident :sql/partition-keys
     :onyx/type :input
     :onyx/medium :sql
-    :onyx/consumption :sequential
+    :onyx/consumption :concurrent
     :onyx/bootstrap? true
     :sql/classname "com.mysql.jdbc.Driver"
     :sql/subprotocol "mysql"
@@ -122,6 +121,7 @@
     :sql/id :id
     :sql/rows-per-segment 1000
     :onyx/batch-size 1000
+    :onyx/max-peers 1
     :onyx/doc "Partitions a range of primary keys into subranges"}
 
    {:onyx/name :read-rows
