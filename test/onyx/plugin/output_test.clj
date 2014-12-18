@@ -1,14 +1,39 @@
 (ns onyx.plugin.output-test
   (:require [clojure.java.jdbc :as jdbc]
-            [midje.sweet :refer :all]
+            [com.stuartsierra.component :as component]
             [honeysql.core :as sql]
+            [onyx.system :refer [onyx-development-env]]
             [onyx.queue.hornetq-utils :as hq-util]
             [onyx.plugin.sql]
-            [onyx.api])
+            [onyx.api]
+            [midje.sweet :refer :all])
   (:import [org.hornetq.api.core.client HornetQClient]
            [org.hornetq.api.core TransportConfiguration HornetQQueueExistsException]
            [org.hornetq.core.remoting.impl.netty NettyConnectorFactory]
            [com.mchange.v2.c3p0 ComboPooledDataSource]))
+
+(def id (java.util.UUID/randomUUID))
+
+(def env-config
+  {:hornetq/mode :vm
+   :hornetq/server? true
+   :hornetq.server/type :vm
+   :zookeeper/address "127.0.0.1:2185"
+   :zookeeper/server? true
+   :zookeeper.server/port 2185
+   :onyx/id id})
+
+(def peer-config
+  {:hornetq/mode :vm
+   :zookeeper/address "127.0.0.1:2185"
+   :onyx/id id
+   :onyx.peer/inbox-capacity 100
+   :onyx.peer/outbox-capacity 100
+   :onyx.peer/job-scheduler :onyx.job-scheduler/round-robin})
+
+(def dev (onyx-development-env env-config))
+
+(def env (component/start dev))
 
 (defn transform [{:keys [word] :as segment}]
   {:rows [{:word word}]})
@@ -18,7 +43,7 @@
    :subprotocol "mysql"
    :subname "//127.0.0.1:3306"
    :user "root"
-   :password "password"})
+   :password ""})
 
 (defn pool [spec]
   {:datasource
@@ -45,7 +70,7 @@
    :subprotocol "mysql"
    :subname "//127.0.0.1:3306/onyx_output_test"
    :user "root"
-   :password "password"})
+   :password ""})
 
 (def conn-pool (pool db-spec))
 
@@ -73,23 +98,6 @@
 
 (hq-util/create-queue! hq-config in-queue)
 (hq-util/write-and-cap! hq-config in-queue words 1)
-
-(def id (str (java.util.UUID/randomUUID)))
-
-(def coord-opts
-  {:hornetq/mode :vm
-   :hornetq/server? true
-   :hornetq.server/type :vm
-   :zookeeper/address "127.0.0.1:2185"
-   :zookeeper/server? true
-   :zookeeper.server/port 2185
-   :onyx/id id
-   :onyx.coordinator/revoke-delay 5000})
-
-(def peer-opts
-  {:hornetq/mode :vm
-   :zookeeper/address "127.0.0.1:2185"
-   :onyx/id id})
 
 (def workflow {:input {:transform :output}})
 
@@ -120,27 +128,30 @@
     :sql/subprotocol "mysql"
     :sql/subname "//127.0.0.1:3306/onyx_output_test"
     :sql/user "root"
-    :sql/password "password"
+    :sql/password ""
     :sql/table :words
     :onyx/batch-size 1000
     :onyx/doc "Writes segments from the :rows keys to the SQL database"}])
 
-(def conn (onyx.api/connect :memory coord-opts))
+(def v-peers (onyx.api/start-peers! 1 peer-config))
 
-(def v-peers (onyx.api/start-peers conn 1 peer-opts))
+(def job-id (onyx.api/submit-job
+             peer-config
+             {:catalog catalog :workflow workflow
+              :task-scheduler :onyx.task-scheduler/round-robin}))
 
-(def job-id (onyx.api/submit-job conn {:catalog catalog :workflow workflow}))
+;; @(onyx.api/await-job-completion conn (str job-id))
 
-@(onyx.api/await-job-completion conn (str job-id))
+(Thread/sleep 15000)
 
 (def sql-map {:select [:*] :from [:words]})
 
 (def results (jdbc/query conn-pool (sql/format sql-map)))
 
+(fact results => (map-indexed (fn [k x] (assoc x :id (inc k))) words))
+
 (doseq [v-peer v-peers]
   ((:shutdown-fn v-peer)))
 
-(onyx.api/shutdown conn)
-
-(fact results => (map-indexed (fn [k x] (assoc x :id (inc k))) words))
+(component/stop env)
 
