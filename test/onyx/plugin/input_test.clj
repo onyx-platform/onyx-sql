@@ -1,7 +1,5 @@
 (ns onyx.plugin.input-test
   (:require [clojure.java.jdbc :as jdbc]
-            [com.stuartsierra.component :as component]
-            [onyx.system :refer [onyx-development-env]]
             [onyx.queue.hornetq-utils :as hq-util]
             [onyx.plugin.sql]
             [onyx.api]
@@ -13,6 +11,8 @@
 
 (def id (java.util.UUID/randomUUID))
 
+(def scheduler :onyx.job-scheduler/round-robin)
+
 (def env-config
   {:hornetq/mode :vm
    :hornetq/server? true
@@ -20,7 +20,8 @@
    :zookeeper/address "127.0.0.1:2185"
    :zookeeper/server? true
    :zookeeper.server/port 2185
-   :onyx/id id})
+   :onyx/id id
+   :onyx.peer/job-scheduler scheduler})
 
 (def peer-config
   {:hornetq/mode :vm
@@ -28,11 +29,9 @@
    :onyx/id id
    :onyx.peer/inbox-capacity 100
    :onyx.peer/outbox-capacity 100
-   :onyx.peer/job-scheduler :onyx.job-scheduler/round-robin})
+   :onyx.peer/job-scheduler scheduler})
 
-(def dev (onyx-development-env env-config))
-
-(def env (component/start dev))
+(def env (onyx.api/start-env env-config))
 
 (defn capitalize [segment]
   (update-in segment [:name] clojure.string/upper-case))
@@ -166,7 +165,7 @@
 (def results (hq-util/consume-queue! hq-config out-queue 1))
 
 (doseq [v-peer v-peers]
-  ((:shutdown-fn v-peer)))
+  (onyx.api/shutdown-peer v-peer))
 
 (fact results
       => [{:id 1 :name "MIKE"}
@@ -176,5 +175,5 @@
           {:id 5 :name "DEREK"}
           :done])
 
-(component/stop env)
+(onyx.api/shutdown-env env)
 

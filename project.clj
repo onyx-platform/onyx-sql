@@ -10,6 +10,5 @@
                  [honeysql "0.4.3"]]
   :profiles {:dev {:dependencies [[midje "1.6.2" :exclusions [joda-time]]
                                   [org.hornetq/hornetq-core-client "2.4.0.Final"]
-                                  [mysql/mysql-connector-java "5.1.25"]
-                                  [com.stuartsierra/component "0.2.1"]]
+                                  [mysql/mysql-connector-java "5.1.25"]]
                    :plugins [[lein-midje "3.1.3"]]}})

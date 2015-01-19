@@ -1,8 +1,6 @@
 (ns onyx.plugin.output-test
   (:require [clojure.java.jdbc :as jdbc]
-            [com.stuartsierra.component :as component]
             [honeysql.core :as sql]
-            [onyx.system :refer [onyx-development-env]]
             [onyx.queue.hornetq-utils :as hq-util]
             [onyx.plugin.sql]
             [onyx.api]
@@ -14,6 +12,8 @@
 
 (def id (java.util.UUID/randomUUID))
 
+(def scheduler :onyx.job-scheduler/round-robin)
+
 (def env-config
   {:hornetq/mode :vm
    :hornetq/server? true
@@ -21,7 +21,8 @@
    :zookeeper/address "127.0.0.1:2185"
    :zookeeper/server? true
    :zookeeper.server/port 2185
-   :onyx/id id})
+   :onyx/id id
+   :onyx.peer/job-scheduler scheduler})
 
 (def peer-config
   {:hornetq/mode :vm
@@ -29,11 +30,9 @@
    :onyx/id id
    :onyx.peer/inbox-capacity 100
    :onyx.peer/outbox-capacity 100
-   :onyx.peer/job-scheduler :onyx.job-scheduler/round-robin})
+   :onyx.peer/job-scheduler scheduler})
 
-(def dev (onyx-development-env env-config))
-
-(def env (component/start dev))
+(def env (onyx.api/start-env env-config))
 
 (defn transform [{:keys [word] :as segment}]
   {:rows [{:word word}]})
