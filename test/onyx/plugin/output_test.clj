@@ -140,9 +140,7 @@
              {:catalog catalog :workflow workflow
               :task-scheduler :onyx.task-scheduler/round-robin}))
 
-;; @(onyx.api/await-job-completion conn (str job-id))
-
-(Thread/sleep 15000)
+(onyx.api/await-job-completion peer-config job-id)
 
 (def sql-map {:select [:*] :from [:words]})
 
@@ -151,7 +149,7 @@
 (fact results => (map-indexed (fn [k x] (assoc x :id (inc k))) words))
 
 (doseq [v-peer v-peers]
-  ((:shutdown-fn v-peer)))
+  (onyx.api/shutdown-peer v-peer))
 
-(component/stop env)
+(onyx.api/shutdown-env env)
 
