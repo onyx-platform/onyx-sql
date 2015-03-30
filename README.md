@@ -35,6 +35,7 @@ In your peer boot-up namespace:
  :sql/table :table-name
  :sql/id :id-column
  :sql/rows-per-segment n
+ :sql/read-buffer n
  :onyx/batch-size batch-size
  :onyx/max-peers 1
  :onyx/doc "Partitions a range of primary keys into subranges"}
@@ -71,6 +72,7 @@ In your peer boot-up namespace:
 |`:sql/table`            | `keyword` | The table to read/write from/to
 |`:sql/id`               | `keyword` | The name of a unique, monotonically increasing integer column
 |`:sql/rows-per-segment` | `integer` | The number of rows to compress into a single segment
+|`:sql/read-buffer`      | `integer` | The number of messages to buffer via core.async, default is `1000`
 
 #### Contributing
 

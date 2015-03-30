@@ -1,37 +1,34 @@
 (ns onyx.plugin.input-test
   (:require [clojure.java.jdbc :as jdbc]
-            [onyx.queue.hornetq-utils :as hq-util]
+            [clojure.core.async :refer [chan >!! <!!]]
+            [onyx.peer.task-lifecycle-extensions :as l-ext]
+            [onyx.plugin.core-async :refer [take-segments!]]
             [onyx.plugin.sql]
             [onyx.api]
             [midje.sweet :refer :all])
-  (:import [org.hornetq.api.core.client HornetQClient]
-           [org.hornetq.api.core TransportConfiguration HornetQQueueExistsException]
-           [org.hornetq.core.remoting.impl.netty NettyConnectorFactory]
-           [com.mchange.v2.c3p0 ComboPooledDataSource]))
+  (:import [com.mchange.v2.c3p0 ComboPooledDataSource]))
 
 (def id (java.util.UUID/randomUUID))
 
-(def scheduler :onyx.job-scheduler/round-robin)
-
 (def env-config
-  {:hornetq/mode :vm
-   :hornetq/server? true
-   :hornetq.server/type :vm
-   :zookeeper/address "127.0.0.1:2185"
+  {:zookeeper/address "127.0.0.1:2188"
    :zookeeper/server? true
-   :zookeeper.server/port 2185
-   :onyx/id id
-   :onyx.peer/job-scheduler scheduler})
+   :zookeeper.server/port 2188
+   :onyx/id id})
 
 (def peer-config
-  {:hornetq/mode :vm
-   :zookeeper/address "127.0.0.1:2185"
-   :onyx/id id
-   :onyx.peer/inbox-capacity 100
-   :onyx.peer/outbox-capacity 100
-   :onyx.peer/job-scheduler scheduler})
+  {:zookeeper/address "127.0.0.1:2188"
+   :onyx.peer/job-scheduler :onyx.job-scheduler/greedy
+   :onyx.messaging/impl :aeron
+   :onyx.messaging/peer-port-range [40200 40400]
+   :onyx.messaging/peer-ports [40199]
+   :onyx.messaging/bind-addr "localhost"
+   :onyx.messaging/backpressure-strategy :high-restart-latency
+   :onyx/id id})
 
 (def env (onyx.api/start-env env-config))
+
+(def peer-group (onyx.api/start-peer-group peer-config))
 
 (defn capitalize [segment]
   (update-in segment [:name] clojure.string/upper-case))
@@ -89,28 +86,18 @@
 (doseq [person people]
   (jdbc/insert! conn-pool :people {:name person}))
 
-(def hornetq-host "localhost")
-
-(def hornetq-port 5465)
-
-(def hq-config {"host" hornetq-host "port" hornetq-port})
-
-(def out-queue (str (java.util.UUID/randomUUID)))
-
-(hq-util/create-queue! hq-config out-queue)
-
 (def workflow
   [[:partition-keys :read-rows]
    [:read-rows :capitalize]
    [:capitalize :persist]])
+
+(def out-chan (chan 1000))
 
 (def catalog
   [{:onyx/name :partition-keys
     :onyx/ident :sql/partition-keys
     :onyx/type :input
     :onyx/medium :sql
-    :onyx/consumption :concurrent
-    :onyx/bootstrap? true
     :sql/classname "com.mysql.jdbc.Driver"
     :sql/subprotocol "mysql"
     :sql/subname "//127.0.0.1:3306/onyx_input_test"
@@ -127,7 +114,6 @@
     :onyx/ident :sql/read-rows
     :onyx/fn :onyx.plugin.sql/read-rows
     :onyx/type :function
-    :onyx/consumption :concurrent
     :onyx/batch-size 1000
     :sql/classname "com.mysql.jdbc.Driver"
     :sql/subprotocol "mysql"
@@ -141,31 +127,28 @@
    {:onyx/name :capitalize
     :onyx/fn :onyx.plugin.input-test/capitalize
     :onyx/type :function
-    :onyx/consumption :concurrent
     :onyx/batch-size 1000
     :onyx/doc "Capitilizes the :name key"}
 
    {:onyx/name :persist
-    :onyx/ident :hornetq/write-segments
+    :onyx/ident :core.async/write-to-chan
     :onyx/type :output
-    :onyx/medium :hornetq
-    :onyx/consumption :concurrent
-    :hornetq/queue-name out-queue
-    :hornetq/host hornetq-host
-    :hornetq/port hornetq-port
+    :onyx/medium :core.async
     :onyx/batch-size 1000
-    :onyx/doc "Output source for intermediate query results"}])
+    :onyx/max-peers 1
+    :onyx/doc "Writes segments to a core.async channel"}])
 
-(def v-peers (onyx.api/start-peers! 1 peer-config))
+(defmethod l-ext/inject-lifecycle-resources :persist
+  [_ _] {:core.async/chan out-chan})
 
-(onyx.api/submit-job peer-config
-                     {:catalog catalog :workflow workflow
-                      :task-scheduler :onyx.task-scheduler/round-robin})
+(def v-peers (onyx.api/start-peers 4 peer-group))
 
-(def results (hq-util/consume-queue! hq-config out-queue 1))
+(onyx.api/submit-job
+ peer-config
+ {:catalog catalog :workflow workflow
+  :task-scheduler :onyx.task-scheduler/round-robin})
 
-(doseq [v-peer v-peers]
-  (onyx.api/shutdown-peer v-peer))
+(def results (take-segments! out-chan))
 
 (fact results
       => [{:id 1 :name "MIKE"}
@@ -174,6 +157,11 @@
           {:id 4 :name "KRISTEN"}
           {:id 5 :name "DEREK"}
           :done])
+
+(doseq [v-peer v-peers]
+  (onyx.api/shutdown-peer v-peer))
+
+(onyx.api/shutdown-peer-group peer-group)
 
 (onyx.api/shutdown-env env)
 
