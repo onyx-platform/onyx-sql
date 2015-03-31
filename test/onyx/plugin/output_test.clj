@@ -5,10 +5,7 @@
             [onyx.plugin.sql]
             [onyx.api]
             [midje.sweet :refer :all])
-  (:import [org.hornetq.api.core.client HornetQClient]
-           [org.hornetq.api.core TransportConfiguration HornetQQueueExistsException]
-           [org.hornetq.core.remoting.impl.netty NettyConnectorFactory]
-           [com.mchange.v2.c3p0 ComboPooledDataSource]))
+  (:import [com.mchange.v2.c3p0 ComboPooledDataSource]))
 
 (def id (java.util.UUID/randomUUID))
 

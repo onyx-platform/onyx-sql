@@ -25,8 +25,6 @@ In your peer boot-up namespace:
  :onyx/ident :sql/partition-keys
  :onyx/type :input
  :onyx/medium :sql
- :onyx/consumption :concurrent
- :onyx/bootstrap? true
  :sql/classname "com.my.jdbc.Driver"
  :sql/subprotocol "my-subprotocol"
  :sql/subname "//my.sub.name:3306/db"
@@ -48,7 +46,6 @@ In your peer boot-up namespace:
  :onyx/ident :sql/read-rows
  :onyx/fn :onyx.plugin.sql/read-rows
  :onyx/type :function
- :onyx/consumption :concurrent
  :sql/classname "com.my.jdbc.Driver"
  :sql/subprotocol "my-subprotocol"
  :sql/subname "//my.sub.name:3306/db"
@@ -58,6 +55,23 @@ In your peer boot-up namespace:
  :sql/id :my-id-column
  :onyx/batch-size batch-size
  :onyx/doc "Reads rows of a SQL table bounded by a key range"}
+```
+
+##### write-rows
+
+```clojure
+{:onyx/name :write-rows
+ :onyx/ident :sql/write-rows
+ :onyx/medium :sql
+ :onyx/type :output
+ :sql/classname "com.my.jdbc.Driver"
+ :sql/subprotocol "my-subprotocol"
+ :sql/subname "//my.sub.name:3306/db"
+ :sql/user "my-root"
+ :sql/password "my-password"
+ :sql/table :my-table-name
+ :onyx/batch-size batch-size
+ :onyx/doc "Writes :rows to SQL storage"}
 ```
 
 #### Attributes
