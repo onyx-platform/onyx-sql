@@ -9,7 +9,7 @@
                  [com.mchange/c3p0 "0.9.2.1"]
                  [com.mdrogalis/onyx "0.6.0-SNAPSHOT"]
                  [com.taoensso/timbre "3.0.1"]
-                 [honeysql "1.5.1"]]
+                 [honeysql "0.5.1"]]
   :profiles {:dev {:dependencies [[midje "1.6.2"]
                                   [environ "1.0.0"]
                                   [mysql/mysql-connector-java "5.1.25"]]
