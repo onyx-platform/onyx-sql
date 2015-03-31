@@ -4,7 +4,8 @@
             [taoensso.timbre :refer [fatal]]
             [onyx.peer.task-lifecycle-extensions :as l-ext]
             [onyx.peer.pipeline-extensions :as p-ext]
-            [onyx.extensions :as extensions])
+            [onyx.extensions :as extensions]
+            [honeysql.core :as sql])
   (:import [com.mchange.v2.c3p0 ComboPooledDataSource]))
 
 (defn create-pool [spec]
