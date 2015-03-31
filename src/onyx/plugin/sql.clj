@@ -1,7 +1,6 @@
 (ns onyx.plugin.sql
   (:require [clojure.java.jdbc :as jdbc]
             [clojure.core.async :refer [chan >! >!! <!! close! go timeout alts!!]]
-            [honeysql.core :as sql]
             [taoensso.timbre :refer [fatal]]
             [onyx.peer.task-lifecycle-extensions :as l-ext]
             [onyx.peer.pipeline-extensions :as p-ext]
