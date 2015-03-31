@@ -74,6 +74,7 @@
                           (let [result (first (alts!! [read-ch timeout-ch] :priority true))]
                             (if (= :done result)
                               {:id (java.util.UUID/randomUUID)
+                               :input :datomic
                                :message :done}
                               {:id (java.util.UUID/randomUUID)
                                :input :sql
