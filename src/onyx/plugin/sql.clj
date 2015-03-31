@@ -114,10 +114,9 @@
 
 (defmethod p-ext/drained? [:input :sql]
   [{:keys [sql/pending-messages]}]
-  (let [y @pending-messages]
-    (let [x @pending-messages]
-      (and (= (count (keys x)) 1)
-           (= (first (map :message (vals x))) :done)))))
+  (let [x @pending-messages]
+    (and (= (count (keys x)) 1)
+         (= (first (map :message (vals x))) :done))))
 
 (defmethod l-ext/inject-lifecycle-resources :sql/read-rows
   [_ {:keys [onyx.core/task-map] :as event}]
