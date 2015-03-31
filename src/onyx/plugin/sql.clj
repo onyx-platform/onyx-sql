@@ -2,6 +2,7 @@
   (:require [clojure.java.jdbc :as jdbc]
             [clojure.core.async :refer [chan >! >!! <!! close! go timeout alts!!]]
             [honeysql.core :as sql]
+            [taoensso.timbre :refer [fatal]]
             [onyx.peer.task-lifecycle-extensions :as l-ext]
             [onyx.peer.pipeline-extensions :as p-ext]
             [onyx.extensions :as extensions])
@@ -28,9 +29,13 @@
 (defn partition-table [{:keys [onyx.core/task-map sql/pool] :as event}]
   (let [sql-map {:select [:%count.*] :from [(:sql/table task-map)]}
         n ((keyword "count(*)") (first (jdbc/query pool (sql/format sql-map))))
-        ranges (partition-all 2 1 (range (or (:sql/lower-bound task-map) 1)
-                                         (or (:sql/upper-bound task-map) n)
-                                         (:sql/rows-per-segment task-map)))]
+        table (name (:sql/table task-map))
+        id-col (name (:sql/id task-map))
+        n-min (or (:sql/lower-bound task-map)
+                  (:min (first (jdbc/query pool (vector (format "select min(%s) as min from %s" id-col table))))))
+        n-max (or (:sql/upper-bound task-map)
+                  (:max (first (jdbc/query pool (vector (format "select max(%s) as max from %s" id-col table))))))
+        ranges (partition-all 2 1 (range n-min n-max (:sql/rows-per-segment task-map)))]
     (map (fn [[l h]]
            {:low l
             :high (dec (or h (inc (or (:sql/upper-bound task-map) n))))
@@ -43,21 +48,25 @@
   (let [pool (task->pool task-map)
         ch (chan (or (:sql/read-buffer task-map) 1000))]
     (go
-     (let [partitions (partition-table event)
-           content {:chunks (count partitions)}]
-       (extensions/write-chunk log :bootstrapped-index content task-id)
+     (try
+       (let [partitions (partition-table (assoc event :sql/pool pool))]
+         (prn "Index: " (count partitions))
+         (extensions/write-chunk log :chunk-index (count partitions) task-id)
 
-       (doseq [partition partitions]
-         (let [content {:partition partition :status :incomplete}
-               path (extensions/write-chunk log :bootstrapped-segment content task-id)]
-           (>! ch {:partition partition :path path})))
-       (>! ch :done)))
+         (doseq [partition partitions]
+           (let [content {:partition partition :status :incomplete}
+                 chunk-id (extensions/write-chunk log :chunk content task-id)]
+             (prn "Puts: " {:content content :chunk-id chunk-id})
+             (>! ch {:content content :chunk-id chunk-id})))
+         (>! ch :done))
+       (catch Exception e
+         (fatal e))))
     {:sql/pool pool
      :sql/read-ch ch
      :sql/pending-messages (atom {})}))
 
-(defmethod p-ext/read-batch :sql/partition-keys
-  [_ {:keys [sql/read-ch sql/pending-messages onyx.core/task-map]}]
+(defmethod p-ext/read-batch [:input :sql]
+  [{:keys [sql/read-ch sql/pending-messages onyx.core/task-map]}]
   (let [pending (count (keys @pending-messages))
         max-pending (or (:onyx/max-pending task-map) 10000)
         batch-size (:onyx/batch-size task-map)
@@ -67,29 +76,34 @@
         batch (->> (range max-segments)
                    (map (fn [_]
                           (let [result (first (alts!! [read-ch timeout-ch] :priority true))]
-                            {:id (java.util.UUID/randomUUID)
-                             :input :sql
-                             :message (:partition result)
-                             :path (:path result)})))
+                            (if (= :done result)
+                              {:id (java.util.UUID/randomUUID)
+                               :message result}
+                              {:id (java.util.UUID/randomUUID)
+                               :input :sql
+                               :message (:partition (:content result))
+                               :chunk-id (:chunk-id result)}))))
                    (remove (comp nil? :message)))]
     (doseq [m batch]
-      (swap! pending-messages assoc (:id m)
-             {:message (:message m) :path (:path m)}))
+      (swap! pending-messages assoc (:id m) (select-keys m [:message :chunk-id])))
     {:onyx.core/batch batch}))
 
 (defmethod p-ext/ack-message [:input :sql]
   [{:keys [sql/pending-messages onyx.core/log onyx.core/task-id]} message-id]
-  (let [content {:status :acked}
-        path (:path (get @pending-messages message-id))]
-    (extensions/force-write-chunk log :bootstrapped-segment content path)
+  (prn "Acking: " message-id)
+  (let [chunk-id (:chunk-id (get @pending-messages message-id))
+        content {:status :acked :id (chunk-id)}]
+    (extensions/force-write-chunk log :chunk content task-id)
     (swap! pending-messages dissoc message-id)))
 
 (defmethod p-ext/retry-message [:input :sql]
   [{:keys [sql/pending-messages core.async/read-ch onyx.core/log]} message-id]
+  (prn "Retrying: " message-id @pending-messages)
   (let [snapshot @pending-messages
         message (get snapshot message-id)
         content {:status :incomplete :partition (:partition message)}]
-    (extensions/force-write-chunk log :bootstrapped-segment content (:path message))
+    (prn "MSG: " content)
+    (extensions/force-write-chunk log :chunk content (:path message))
     (swap! pending-messages dissoc message-id)
     (>!! read-ch {:partition (:partition message) :path (:path message)})))
 
@@ -103,12 +117,20 @@
     (and (= (count (keys x)) 1)
          (= (first (vals x)) :done))))
 
-(defmethod l-ext/inject-lifecycle-resources
-  :sql/read-rows
+(defmethod l-ext/inject-lifecycle-resources :sql/read-rows
   [_ {:keys [onyx.core/task-map] :as event}]
   (let [pool (task->pool task-map)]
     {:sql/pool pool
      :onyx.core/params [pool]}))
+
+(defn read-rows [pool {:keys [table id low high] :as segment}]
+  (let [sql-map {:select [:*]
+                 :from [table]
+                 :where [:and
+                         [:>= id low]
+                         [:<= id high]]}]
+    (prn "QUERY: " sql-map)
+    (jdbc/query pool (sql/format sql-map))))
 
 (defmethod l-ext/inject-lifecycle-resources
   :sql/write-rows
@@ -132,14 +154,6 @@
   [_ {:keys [sql/pool] :as event}]
   (.close (:datasource pool))
   {})
-
-(defn read-rows [pool {:keys [table id low high] :as segment}]
-  (let [sql-map {:select [:*]
-                 :from [table]
-                 :where [:and
-                         [:>= id low]
-                         [:<= id high]]}]
-    (jdbc/query pool (sql/format sql-map))))
 
 (defmethod p-ext/write-batch [:output :sql]
   [{:keys [onyx.core/compressed onyx.core/task-map sql/pool] :as event}]

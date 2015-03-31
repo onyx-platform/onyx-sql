@@ -8,6 +8,7 @@
                  [org.clojure/java.jdbc "0.3.3"]
                  [com.mchange/c3p0 "0.9.2.1"]
                  [com.mdrogalis/onyx "0.6.0-SNAPSHOT"]
+                 [com.taoensso/timbre "3.0.1"]
                  [honeysql "0.4.3"]]
   :profiles {:dev {:dependencies [[midje "1.6.2" :exclusions [joda-time]]
                                   [mysql/mysql-connector-java "5.1.25"]]
