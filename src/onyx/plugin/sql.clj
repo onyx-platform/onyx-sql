@@ -27,9 +27,7 @@
     (create-pool db-spec)))
 
 (defn partition-table [{:keys [onyx.core/task-map sql/pool] :as event}]
-  (let [sql-map {:select [:%count.*] :from [(:sql/table task-map)]}
-        n ((keyword "count(*)") (first (jdbc/query pool (sql/format sql-map))))
-        table (name (:sql/table task-map))
+  (let [table (name (:sql/table task-map))
         id-col (name (:sql/id task-map))
         n-min (or (:sql/lower-bound task-map)
                   (:min (first (jdbc/query pool (vector (format "select min(%s) as min from %s" id-col table))))))
@@ -38,7 +36,7 @@
         ranges (partition-all 2 1 (range n-min n-max (:sql/rows-per-segment task-map)))]
     (map (fn [[l h]]
            {:low l
-            :high (dec (or h (inc (or (:sql/upper-bound task-map) n))))
+            :high (dec (or h (inc n-max)))
             :table (:sql/table task-map)
             :id (:sql/id task-map)})
          ranges)))
