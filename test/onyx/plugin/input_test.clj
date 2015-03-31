@@ -5,6 +5,7 @@
             [onyx.plugin.core-async :refer [take-segments!]]
             [onyx.plugin.sql]
             [onyx.api]
+            [environ.core :refer [env]]
             [midje.sweet :refer :all])
   (:import [com.mchange.v2.c3p0 ComboPooledDataSource]))
 
@@ -33,11 +34,15 @@
 (defn capitalize [segment]
   (update-in segment [:name] clojure.string/upper-case))
 
+(def db-user (or (env :test-db-user) "root"))
+
+(def db-name (or (env :test-db-name) "onyx_input_test"))
+
 (def db-spec
   {:classname "com.mysql.jdbc.Driver"
    :subprotocol "mysql"
    :subname "//127.0.0.1:3306"
-   :user "root"
+   :user db-user
    :password ""})
 
 (defn pool [spec]
@@ -53,18 +58,18 @@
 (def conn-pool (pool db-spec))
 
 (try
-  (jdbc/execute! conn-pool ["drop database onyx_input_test"])
+  (jdbc/execute! conn-pool [(str "drop database " db-name)])
   (catch Exception e
     (.printStackTrace e)))
 
-(jdbc/execute! conn-pool ["create database onyx_input_test"])
-(jdbc/execute! conn-pool ["use onyx_input_test"])
+(jdbc/execute! conn-pool [(str "create database " db-name)])
+(jdbc/execute! conn-pool [(str "use " db-name)])
 
 (def db-spec
   {:classname "com.mysql.jdbc.Driver"
    :subprotocol "mysql"
-   :subname "//127.0.0.1:3306/onyx_input_test"
-   :user "root"
+   :subname (str "//127.0.0.1:3306/" db-name)
+   :user db-user
    :password ""})
 
 (def conn-pool (pool db-spec))
@@ -100,8 +105,8 @@
     :onyx/medium :sql
     :sql/classname "com.mysql.jdbc.Driver"
     :sql/subprotocol "mysql"
-    :sql/subname "//127.0.0.1:3306/onyx_input_test"
-    :sql/user "root"
+    :sql/subname (str "//127.0.0.1:3306/" db-name)
+    :sql/user db-user
     :sql/password ""
     :sql/table :people
     :sql/id :id
@@ -117,8 +122,8 @@
     :onyx/batch-size 1000
     :sql/classname "com.mysql.jdbc.Driver"
     :sql/subprotocol "mysql"
-    :sql/subname "//127.0.0.1:3306/onyx_input_test"
-    :sql/user "root"
+    :sql/subname (str "//127.0.0.1:3306/" db-name)
+    :sql/user db-user
     :sql/password ""
     :sql/table :people
     :sql/id :id
