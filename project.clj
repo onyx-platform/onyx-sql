@@ -13,4 +13,5 @@
   :profiles {:dev {:dependencies [[midje "1.6.2" :exclusions [joda-time]]
                                   [environ "1.0.0"]
                                   [mysql/mysql-connector-java "5.1.25"]]
-                   :plugins [[lein-midje "3.1.3"]]}})
+                   :plugins [[lein-midje "3.1.3"]]}
+             :circle-ci {:jvm-opts ["-Xmx4g"]}})
