@@ -50,13 +50,11 @@
     (go
      (try
        (let [partitions (partition-table (assoc event :sql/pool pool))]
-         (prn "Index: " (count partitions))
          (extensions/write-chunk log :chunk-index (count partitions) task-id)
 
          (doseq [partition partitions]
            (let [content {:partition partition :status :incomplete}
                  chunk-id (extensions/write-chunk log :chunk content task-id)]
-             (prn "Puts: " {:content content :chunk-id chunk-id})
              (>! ch {:content content :chunk-id chunk-id})))
          (>! ch :done))
        (catch Exception e
@@ -78,7 +76,7 @@
                           (let [result (first (alts!! [read-ch timeout-ch] :priority true))]
                             (if (= :done result)
                               {:id (java.util.UUID/randomUUID)
-                               :message result}
+                               :message :done}
                               {:id (java.util.UUID/randomUUID)
                                :input :sql
                                :message (:partition (:content result))
@@ -90,22 +88,26 @@
 
 (defmethod p-ext/ack-message [:input :sql]
   [{:keys [sql/pending-messages onyx.core/log onyx.core/task-id]} message-id]
-  (prn "Acking: " message-id)
-  (let [chunk-id (:chunk-id (get @pending-messages message-id))
-        content {:status :acked :id (chunk-id)}]
-    (extensions/force-write-chunk log :chunk content task-id)
-    (swap! pending-messages dissoc message-id)))
+  (try
+    (if-let [chunk-id (:chunk-id (get @pending-messages message-id))]
+      (let [content {:status :acked :id chunk-id}]
+        (extensions/force-write-chunk log :chunk content task-id)
+        (swap! pending-messages dissoc message-id))
+      (swap! pending-messages dissoc message-id))
+    (catch Exception e
+      (fatal e))))
 
 (defmethod p-ext/retry-message [:input :sql]
-  [{:keys [sql/pending-messages core.async/read-ch onyx.core/log]} message-id]
-  (prn "Retrying: " message-id @pending-messages)
+  [{:keys [sql/pending-messages sql/read-ch onyx.core/log]} message-id]
   (let [snapshot @pending-messages
         message (get snapshot message-id)
         content {:status :incomplete :partition (:partition message)}]
-    (prn "MSG: " content)
-    (extensions/force-write-chunk log :chunk content (:path message))
     (swap! pending-messages dissoc message-id)
-    (>!! read-ch {:partition (:partition message) :path (:path message)})))
+    (if (:partition message)
+      (do
+        (extensions/force-write-chunk log :chunk content (:path message))
+        (>!! read-ch {:partition (:partition message) :status :incomplete :path (:path message)}))
+      (>!! read-ch :done))))
 
 (defmethod p-ext/pending? [:input :sql]
   [{:keys [sql/pending-messages]} message-id]
@@ -113,9 +115,10 @@
 
 (defmethod p-ext/drained? [:input :sql]
   [{:keys [sql/pending-messages]}]
-  (let [x @pending-messages]
-    (and (= (count (keys x)) 1)
-         (= (first (vals x)) :done))))
+  (let [y @pending-messages]
+    (let [x @pending-messages]
+      (and (= (count (keys x)) 1)
+           (= (first (map :message (vals x))) :done)))))
 
 (defmethod l-ext/inject-lifecycle-resources :sql/read-rows
   [_ {:keys [onyx.core/task-map] :as event}]
@@ -129,7 +132,6 @@
                  :where [:and
                          [:>= id low]
                          [:<= id high]]}]
-    (prn "QUERY: " sql-map)
     (jdbc/query pool (sql/format sql-map))))
 
 (defmethod l-ext/inject-lifecycle-resources

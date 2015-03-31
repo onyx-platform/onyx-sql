@@ -31,7 +31,6 @@
 (def peer-group (onyx.api/start-peer-group peer-config))
 
 (defn capitalize [segment]
-  (prn "GOT: " segment)
   (update-in segment [:name] clojure.string/upper-case))
 
 (def db-spec
@@ -159,11 +158,10 @@
           {:id 5 :name "DEREK"}
           :done])
 
-(do
-  (doseq [v-peer v-peers]
-    (onyx.api/shutdown-peer v-peer))
+(doseq [v-peer v-peers]
+  (onyx.api/shutdown-peer v-peer))
 
-  (onyx.api/shutdown-peer-group peer-group)
+(onyx.api/shutdown-peer-group peer-group)
 
-  (onyx.api/shutdown-env env))
+(onyx.api/shutdown-env env)
 
