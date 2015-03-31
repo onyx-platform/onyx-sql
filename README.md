@@ -94,6 +94,6 @@ Pull requests into the master branch are welcomed.
 
 #### License
 
-Copyright © 2014 Michael Drogalis
+Copyright © 2015 Michael Drogalis
 
 Distributed under the Eclipse Public License, the same as Clojure.

@@ -151,18 +151,21 @@
   (.close (:datasource pool))
   {})
 
-(defmethod l-ext/close-lifecycle-resources
-  :sql/write-rows
+(defmethod l-ext/close-lifecycle-resources :sql/write-rows
   [_ {:keys [sql/pool] :as event}]
   (.close (:datasource pool))
   {})
 
 (defmethod p-ext/write-batch [:output :sql]
-  [{:keys [onyx.core/compressed onyx.core/task-map sql/pool] :as event}]
-  (jdbc/with-db-transaction
-    [conn pool]
-    (doseq [segment compressed]
-      (doseq [row (:rows segment)]
+  [{:keys [onyx.core/results onyx.core/task-map sql/pool] :as event}]
+  (doseq [msg (mapcat :leaves results)]
+    (jdbc/with-db-transaction
+      [conn pool]
+      (doseq [row (:rows (:message msg))]
         (jdbc/insert! conn (:sql/table task-map) row))))
   {:onyx.core/written? true})
+
+(defmethod p-ext/seal-resource [:output :sql]
+  [event]
+  {})
 
