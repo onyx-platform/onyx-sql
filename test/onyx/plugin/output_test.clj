@@ -5,6 +5,7 @@
             [onyx.plugin.core-async]
             [onyx.plugin.sql]
             [onyx.api]
+            [environ.core :refer [dev-env]]
             [honeysql.core :as sql]
             [midje.sweet :refer :all])
   (:import [com.mchange.v2.c3p0 ComboPooledDataSource]))
@@ -34,9 +35,9 @@
 (defn transform [{:keys [word] :as segment}]
   {:rows [{:word word}]})
 
-(def db-user (or (env :test-db-user) "root"))
+(def db-user (or (dev-env :test-db-user) "root"))
 
-(def db-name (or (env :test-db-name) "onyx_output_test"))
+(def db-name (or (dev-env :test-db-name) "onyx_output_test"))
 
 (def db-spec
   {:classname "com.mysql.jdbc.Driver"
