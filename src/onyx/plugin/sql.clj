@@ -61,7 +61,7 @@
      :sql/read-ch ch
      :sql/pending-messages (atom {})}))
 
-(defmethod p-ext/read-batch [:input :sql]
+(defmethod p-ext/read-batch :sql/partition-keys
   [{:keys [sql/read-ch sql/pending-messages onyx.core/task-map]}]
   (let [pending (count (keys @pending-messages))
         max-pending (or (:onyx/max-pending task-map) 10000)
@@ -85,7 +85,7 @@
       (swap! pending-messages assoc (:id m) (select-keys m [:message :chunk-id])))
     {:onyx.core/batch batch}))
 
-(defmethod p-ext/ack-message [:input :sql]
+(defmethod p-ext/ack-message :sql/partition-keys
   [{:keys [sql/pending-messages onyx.core/log onyx.core/task-id]} message-id]
   (try
     (if-let [chunk-id (:chunk-id (get @pending-messages message-id))]
@@ -96,7 +96,7 @@
     (catch Exception e
       (fatal e))))
 
-(defmethod p-ext/retry-message [:input :sql]
+(defmethod p-ext/retry-message :sql/partition-keys
   [{:keys [sql/pending-messages sql/read-ch onyx.core/log]} message-id]
   (let [snapshot @pending-messages
         message (get snapshot message-id)
@@ -108,11 +108,11 @@
         (>!! read-ch {:partition (:partition message) :status :incomplete :path (:path message)}))
       (>!! read-ch :done))))
 
-(defmethod p-ext/pending? [:input :sql]
+(defmethod p-ext/pending? :sql/partition-keys
   [{:keys [sql/pending-messages]} message-id]
   (get @pending-messages message-id))
 
-(defmethod p-ext/drained? [:input :sql]
+(defmethod p-ext/drained? :sql/partition-keys
   [{:keys [sql/pending-messages]}]
   (let [x @pending-messages]
     (and (= (count (keys x)) 1)
@@ -132,19 +132,16 @@
                          [:<= id high]]}]
     (jdbc/query pool (sql/format sql-map))))
 
-(defmethod l-ext/inject-lifecycle-resources
-  :sql/write-rows
+(defmethod l-ext/inject-lifecycle-resources :sql/write-rows
   [_ {:keys [onyx.core/task-map] :as event}]
   {:sql/pool (task->pool task-map)})
 
-(defmethod l-ext/close-lifecycle-resources
-  :sql/partition-keys
+(defmethod l-ext/close-lifecycle-resources :sql/partition-keys
   [_ {:keys [sql/pool] :as event}]
   (.close (:datasource pool))
   {})
 
-(defmethod l-ext/close-lifecycle-resources
-  :sql/read-rows
+(defmethod l-ext/close-lifecycle-resources :sql/read-rows
   [_ {:keys [sql/pool] :as event}]
   (.close (:datasource pool))
   {})
@@ -154,7 +151,7 @@
   (.close (:datasource pool))
   {})
 
-(defmethod p-ext/write-batch [:output :sql]
+(defmethod p-ext/write-batch :sql/write-rows
   [{:keys [onyx.core/results onyx.core/task-map sql/pool] :as event}]
   (doseq [msg (mapcat :leaves results)]
     (jdbc/with-db-transaction
@@ -163,7 +160,6 @@
         (jdbc/insert! conn (:sql/table task-map) row))))
   {:onyx.core/written? true})
 
-(defmethod p-ext/seal-resource [:output :sql]
+(defmethod p-ext/seal-resource :sql/write-rows
   [event]
   {})
-
