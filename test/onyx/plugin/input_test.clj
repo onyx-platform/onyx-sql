@@ -20,11 +20,10 @@
 (def peer-config
   {:zookeeper/address "127.0.0.1:2188"
    :onyx.peer/job-scheduler :onyx.job-scheduler/greedy
-   :onyx.messaging/impl :aeron
+   :onyx.messaging/impl :netty
    :onyx.messaging/peer-port-range [40200 40400]
    :onyx.messaging/peer-ports [40199]
    :onyx.messaging/bind-addr "localhost"
-   :onyx.messaging/backpressure-strategy :high-restart-latency
    :onyx/id id})
 
 (def dev-env (onyx.api/start-env env-config))
@@ -169,4 +168,3 @@
 (onyx.api/shutdown-peer-group peer-group)
 
 (onyx.api/shutdown-env dev-env)
-
