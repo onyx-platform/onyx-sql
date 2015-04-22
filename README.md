@@ -7,7 +7,7 @@ Onyx plugin providing read and write facilities for SQL databases with JDBC supp
 In your project file:
 
 ```clojure
-[com.mdrogalis/onyx-sql "0.5.3"]
+[com.mdrogalis/onyx-sql "0.6.0-SNAPSHOT"]
 ```
 
 In your peer boot-up namespace:
@@ -25,8 +25,6 @@ In your peer boot-up namespace:
  :onyx/ident :sql/partition-keys
  :onyx/type :input
  :onyx/medium :sql
- :onyx/consumption :concurrent
- :onyx/bootstrap? true
  :sql/classname "com.my.jdbc.Driver"
  :sql/subprotocol "my-subprotocol"
  :sql/subname "//my.sub.name:3306/db"
@@ -35,6 +33,7 @@ In your peer boot-up namespace:
  :sql/table :table-name
  :sql/id :id-column
  :sql/rows-per-segment n
+ :sql/read-buffer n
  :onyx/batch-size batch-size
  :onyx/max-peers 1
  :onyx/doc "Partitions a range of primary keys into subranges"}
@@ -47,7 +46,6 @@ In your peer boot-up namespace:
  :onyx/ident :sql/read-rows
  :onyx/fn :onyx.plugin.sql/read-rows
  :onyx/type :function
- :onyx/consumption :concurrent
  :sql/classname "com.my.jdbc.Driver"
  :sql/subprotocol "my-subprotocol"
  :sql/subname "//my.sub.name:3306/db"
@@ -57,6 +55,23 @@ In your peer boot-up namespace:
  :sql/id :my-id-column
  :onyx/batch-size batch-size
  :onyx/doc "Reads rows of a SQL table bounded by a key range"}
+```
+
+##### write-rows
+
+```clojure
+{:onyx/name :write-rows
+ :onyx/ident :sql/write-rows
+ :onyx/medium :sql
+ :onyx/type :output
+ :sql/classname "com.my.jdbc.Driver"
+ :sql/subprotocol "my-subprotocol"
+ :sql/subname "//my.sub.name:3306/db"
+ :sql/user "my-root"
+ :sql/password "my-password"
+ :sql/table :my-table-name
+ :onyx/batch-size batch-size
+ :onyx/doc "Writes :rows to SQL storage"}
 ```
 
 #### Attributes
@@ -71,6 +86,7 @@ In your peer boot-up namespace:
 |`:sql/table`            | `keyword` | The table to read/write from/to
 |`:sql/id`               | `keyword` | The name of a unique, monotonically increasing integer column
 |`:sql/rows-per-segment` | `integer` | The number of rows to compress into a single segment
+|`:sql/read-buffer`      | `integer` | The number of messages to buffer via core.async, default is `1000`
 
 #### Contributing
 
@@ -78,6 +94,6 @@ Pull requests into the master branch are welcomed.
 
 #### License
 
-Copyright © 2014 Michael Drogalis
+Copyright © 2015 Michael Drogalis
 
 Distributed under the Eclipse Public License, the same as Clojure.

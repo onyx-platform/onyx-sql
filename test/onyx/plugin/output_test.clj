@@ -1,47 +1,48 @@
 (ns onyx.plugin.output-test
   (:require [clojure.java.jdbc :as jdbc]
-            [honeysql.core :as sql]
-            [onyx.queue.hornetq-utils :as hq-util]
+            [clojure.core.async :refer [chan >!! <!! close!]]
+            [onyx.peer.task-lifecycle-extensions :as l-ext]
+            [onyx.plugin.core-async]
             [onyx.plugin.sql]
             [onyx.api]
+            [environ.core :refer [env]]
+            [honeysql.core :as sql]
             [midje.sweet :refer :all])
-  (:import [org.hornetq.api.core.client HornetQClient]
-           [org.hornetq.api.core TransportConfiguration HornetQQueueExistsException]
-           [org.hornetq.core.remoting.impl.netty NettyConnectorFactory]
-           [com.mchange.v2.c3p0 ComboPooledDataSource]))
+  (:import [com.mchange.v2.c3p0 ComboPooledDataSource]))
 
 (def id (java.util.UUID/randomUUID))
 
-(def scheduler :onyx.job-scheduler/round-robin)
-
 (def env-config
-  {:hornetq/mode :vm
-   :hornetq/server? true
-   :hornetq.server/type :vm
-   :zookeeper/address "127.0.0.1:2185"
+  {:zookeeper/address "127.0.0.1:2188"
    :zookeeper/server? true
-   :zookeeper.server/port 2185
-   :onyx/id id
-   :onyx.peer/job-scheduler scheduler})
+   :zookeeper.server/port 2188
+   :onyx/id id})
 
 (def peer-config
-  {:hornetq/mode :vm
-   :zookeeper/address "127.0.0.1:2185"
-   :onyx/id id
-   :onyx.peer/inbox-capacity 100
-   :onyx.peer/outbox-capacity 100
-   :onyx.peer/job-scheduler scheduler})
+  {:zookeeper/address "127.0.0.1:2188"
+   :onyx.peer/job-scheduler :onyx.job-scheduler/greedy
+   :onyx.messaging/impl :netty
+   :onyx.messaging/peer-port-range [40200 40400]
+   :onyx.messaging/peer-ports [40199]
+   :onyx.messaging/bind-addr "localhost"
+   :onyx/id id})
 
-(def env (onyx.api/start-env env-config))
+(def dev-env (onyx.api/start-env env-config))
+
+(def peer-group (onyx.api/start-peer-group peer-config))
 
 (defn transform [{:keys [word] :as segment}]
   {:rows [{:word word}]})
+
+(def db-user (or (env :test-db-user) "root"))
+
+(def db-name (or (env :test-db-name) "onyx_output_test"))
 
 (def db-spec
   {:classname "com.mysql.jdbc.Driver"
    :subprotocol "mysql"
    :subname "//127.0.0.1:3306"
-   :user "root"
+   :user db-user
    :password ""})
 
 (defn pool [spec]
@@ -57,18 +58,18 @@
 (def conn-pool (pool db-spec))
 
 (try
-  (jdbc/execute! conn-pool ["drop database onyx_output_test"])
+  (jdbc/execute! conn-pool [(str "drop database " db-name)])
   (catch Exception e
     (.printStackTrace e)))
 
-(jdbc/execute! conn-pool ["create database onyx_output_test"])
-(jdbc/execute! conn-pool ["use onyx_output_test"])
+(jdbc/execute! conn-pool [(str "create database " db-name)])
+(jdbc/execute! conn-pool [(str "use " db-name)])
 
 (def db-spec
   {:classname "com.mysql.jdbc.Driver"
    :subprotocol "mysql"
-   :subname "//127.0.0.1:3306/onyx_output_test"
-   :user "root"
+   :subname (str "//127.0.0.1:3306/" db-name)
+   :user db-user
    :password ""})
 
 (def conn-pool (pool db-spec))
@@ -87,57 +88,55 @@
    {:word "Door"}
    {:word "Surf board"}])
 
-(def hornetq-host "localhost")
+(def in-chan (chan 1000))
 
-(def hornetq-port 5465)
+(doseq [word words]
+  (>!! in-chan word))
 
-(def hq-config {"host" hornetq-host "port" hornetq-port})
+(>!! in-chan :done)
 
-(def in-queue (str (java.util.UUID/randomUUID)))
-
-(hq-util/create-queue! hq-config in-queue)
-(hq-util/write-and-cap! hq-config in-queue words 1)
-
-(def workflow {:input {:transform :output}})
+(def workflow
+  [[:in :transform]
+   [:transform :out]])
 
 (def catalog
-  [{:onyx/name :input
-    :onyx/ident :hornetq/read-segments
+  [{:onyx/name :in
+    :onyx/ident :core.async/read-from-chan
     :onyx/type :input
-    :onyx/medium :hornetq
-    :onyx/consumption :concurrent
-    :hornetq/queue-name in-queue
-    :hornetq/host hornetq-host
-    :hornetq/port hornetq-port
-    :onyx/batch-size 1000}
+    :onyx/medium :core.async
+    :onyx/batch-size 1000
+    :onyx/max-peers 1
+    :onyx/doc "Reads segments from a core.async channel"}
 
    {:onyx/name :transform
     :onyx/fn :onyx.plugin.output-test/transform
     :onyx/type :function
-    :onyx/consumption :concurrent
     :onyx/batch-size 1000
     :onyx/doc "Transforms a segment to prepare for SQL persistence"}
 
-   {:onyx/name :output
+   {:onyx/name :out
     :onyx/ident :sql/write-rows
     :onyx/type :output
     :onyx/medium :sql
-    :onyx/consumption :concurrent
     :sql/classname "com.mysql.jdbc.Driver"
     :sql/subprotocol "mysql"
-    :sql/subname "//127.0.0.1:3306/onyx_output_test"
-    :sql/user "root"
+    :sql/subname (str "//127.0.0.1:3306/" db-name)
+    :sql/user db-user
     :sql/password ""
     :sql/table :words
     :onyx/batch-size 1000
     :onyx/doc "Writes segments from the :rows keys to the SQL database"}])
 
-(def v-peers (onyx.api/start-peers! 1 peer-config))
+(defmethod l-ext/inject-lifecycle-resources :in
+  [_ _] {:core.async/chan in-chan})
 
-(def job-id (onyx.api/submit-job
-             peer-config
-             {:catalog catalog :workflow workflow
-              :task-scheduler :onyx.task-scheduler/round-robin}))
+(def v-peers (onyx.api/start-peers 3 peer-group))
+
+(def job-id
+  (:job-id (onyx.api/submit-job
+            peer-config
+            {:catalog catalog :workflow workflow
+             :task-scheduler :onyx.task-scheduler/balanced})))
 
 (onyx.api/await-job-completion peer-config job-id)
 
@@ -147,8 +146,11 @@
 
 (fact results => (map-indexed (fn [k x] (assoc x :id (inc k))) words))
 
+(close! in-chan)
+
 (doseq [v-peer v-peers]
   (onyx.api/shutdown-peer v-peer))
 
-(onyx.api/shutdown-env env)
+(onyx.api/shutdown-peer-group peer-group)
 
+(onyx.api/shutdown-env dev-env)
