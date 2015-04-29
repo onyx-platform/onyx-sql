@@ -164,13 +164,13 @@
   {})
 
 (def partition-keys-calls
-  {:lifecycle/before-task :onyx.plugin.sql/inject-partition-keys
-   :lifecycle/after-task :onyx.plugin.sql/close-partition-keys})
+  {:lifecycle/before-task inject-partition-keys
+   :lifecycle/after-task close-partition-keys})
 
 (def read-rows-calls
-  {:lifecycle/before-task :onyx.plugin.sql/inject-read-rows
-   :lifecycle/after-task :onyx.plugin.sql/close-read-rows})
+  {:lifecycle/before-task inject-read-rows
+   :lifecycle/after-task close-read-rows})
 
 (def write-rows-calls
-  {:lifecycle/before-task :onyx.plugin.sql/inject-write-rows
-   :lifecycle/after-task :onyx.plugin.sql/close-write-rows})
+  {:lifecycle/before-task inject-write-rows
+   :lifecycle/after-task close-write-rows})
