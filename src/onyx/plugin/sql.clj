@@ -169,7 +169,7 @@
 
 (def read-rows-calls
   {:lifecycle/before-task :onyx.plugin.sql/inject-read-rows
-   :lifecycle/after-task :onyx.plugin.sql/close-read-drows})
+   :lifecycle/after-task :onyx.plugin.sql/close-read-rows})
 
 (def write-rows-calls
   {:lifecycle/before-task :onyx.plugin.sql/inject-write-rows

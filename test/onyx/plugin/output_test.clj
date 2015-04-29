@@ -138,7 +138,7 @@
    {:lifecycle/task :in
     :lifecycle/calls :onyx.plugin.core-async/reader-calls}
    {:lifecycle/task :out
-    :lifecycle/calls :onyx.plugin.sql/write-rows}])
+    :lifecycle/calls :onyx.plugin.sql/write-rows-calls}])
 
 (def v-peers (onyx.api/start-peers 3 peer-group))
 

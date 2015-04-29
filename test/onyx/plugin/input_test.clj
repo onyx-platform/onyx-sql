@@ -149,9 +149,9 @@
 
 (def lifecycles
   [{:lifecycle/task :partition-keys
-    :lifecycle/calls :onyx.plugin.sql/partition-keys}
+    :lifecycle/calls :onyx.plugin.sql/partition-keys-calls}
    {:lifecycle/task :read-rows
-    :lifecycle/calls :onyx.plugin.sql/read-rows}
+    :lifecycle/calls :onyx.plugin.sql/read-rows-calls}
    {:lifecycle/task :persist
     :lifecycle/calls :onyx.plugin.input-test/persist-calls}
    {:lifecycle/task :persist
