@@ -1,7 +1,6 @@
 (ns onyx.plugin.input-test
   (:require [clojure.java.jdbc :as jdbc]
             [clojure.core.async :refer [chan >!! <!!]]
-            [onyx.peer.task-lifecycle-extensions :as l-ext]
             [onyx.plugin.core-async :refer [take-segments!]]
             [onyx.plugin.sql]
             [onyx.api]
@@ -142,14 +141,27 @@
     :onyx/max-peers 1
     :onyx/doc "Writes segments to a core.async channel"}])
 
-(defmethod l-ext/inject-lifecycle-resources :persist
-  [_ _] {:core.async/chan out-chan})
+(defn inject-persist-ch [event lifecycle]
+  {:core.async/chan out-chan})
+
+(def persist-calls
+  {:lifecycle/before-task inject-persist-ch})
+
+(def lifecycles
+  [{:lifecycle/task :partition-keys
+    :lifecycle/calls :onyx.plugin.sql/partition-keys-calls}
+   {:lifecycle/task :read-rows
+    :lifecycle/calls :onyx.plugin.sql/read-rows-calls}
+   {:lifecycle/task :persist
+    :lifecycle/calls :onyx.plugin.input-test/persist-calls}
+   {:lifecycle/task :persist
+    :lifecycle/calls :onyx.plugin.core-async/writer-calls}])
 
 (def v-peers (onyx.api/start-peers 4 peer-group))
 
 (onyx.api/submit-job
  peer-config
- {:catalog catalog :workflow workflow
+ {:catalog catalog :workflow workflow :lifecycles lifecycles
   :task-scheduler :onyx.task-scheduler/balanced})
 
 (def results (take-segments! out-chan))

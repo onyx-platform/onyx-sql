@@ -7,7 +7,7 @@ Onyx plugin providing read and write facilities for SQL databases with JDBC supp
 In your project file:
 
 ```clojure
-[com.mdrogalis/onyx-sql "0.6.0-alpha1"]
+[com.mdrogalis/onyx-sql "0.6.0-alpha2"]
 ```
 
 In your peer boot-up namespace:
@@ -16,62 +16,94 @@ In your peer boot-up namespace:
 (:require [onyx.plugin.sql])
 ```
 
-#### Catalog entries
+#### Functions
 
 ##### partition-keys
+
+Partitions a table of rows into chunks to be read by another task. Requires a column in the table to be numerically ordered.
+
+Catalog entry:
 
 ```clojure
 {:onyx/name :partition-keys
  :onyx/ident :sql/partition-keys
  :onyx/type :input
  :onyx/medium :sql
- :sql/classname "com.my.jdbc.Driver"
- :sql/subprotocol "my-subprotocol"
- :sql/subname "//my.sub.name:3306/db"
- :sql/user "user"
- :sql/password "password"
+ :sql/classname "my.class.name"
+ :sql/subprotocol "db-sub-protocol"
+ :sql/subname "db-subname"
+ :sql/user "db-user"
+ :sql/password "db-pass"
  :sql/table :table-name
- :sql/id :id-column
- :sql/rows-per-segment n
- :sql/read-buffer n
+ :sql/id :column-to-split-by
+ :sql/rows-per-segment 1000
  :onyx/batch-size batch-size
  :onyx/max-peers 1
  :onyx/doc "Partitions a range of primary keys into subranges"}
 ```
 
+Lifecycle entry:
+
+```clojure
+{:lifecycle/task :partition-keys
+ :lifecycle/calls :onyx.plugin.sql/partition-keys-calls}
+```
+
 ##### read-rows
+
+Reads a partition of a rows from a SQL table.
+
+Catalog entry:
 
 ```clojure
 {:onyx/name :read-rows
  :onyx/ident :sql/read-rows
  :onyx/fn :onyx.plugin.sql/read-rows
  :onyx/type :function
- :sql/classname "com.my.jdbc.Driver"
- :sql/subprotocol "my-subprotocol"
- :sql/subname "//my.sub.name:3306/db"
- :sql/user "my-root"
- :sql/password "my-password"
- :sql/table :my-table-name
- :sql/id :my-id-column
  :onyx/batch-size batch-size
+ :sql/classname "my.class.name"
+ :sql/subprotocol "db-subprotocol"
+ :sql/subname "db-sub-name"
+ :sql/user "db-user"
+ :sql/password "db-pass"
+ :sql/table :table-name
+ :sql/id :column-to-split-by
  :onyx/doc "Reads rows of a SQL table bounded by a key range"}
+```
+
+Lifecycle entry:
+
+```clojure
+{:lifecycle/task :read-rows
+ :lifecycle/calls :onyx.plugin.sql/read-rows-calls}
 ```
 
 ##### write-rows
 
+Writes segments to a SQL database.
+
+Catalog entry:
+
 ```clojure
 {:onyx/name :write-rows
  :onyx/ident :sql/write-rows
- :onyx/medium :sql
  :onyx/type :output
- :sql/classname "com.my.jdbc.Driver"
- :sql/subprotocol "my-subprotocol"
- :sql/subname "//my.sub.name:3306/db"
- :sql/user "my-root"
- :sql/password "my-password"
- :sql/table :my-table-name
+ :onyx/medium :sql
+ :sql/classname "my.class.name"
+ :sql/subprotocol "db-subprotocol"
+ :sql/subname "db-sub-name"
+ :sql/user "db-user"
+ :sql/password "db-pass"
+ :sql/table :table-name
  :onyx/batch-size batch-size
- :onyx/doc "Writes :rows to SQL storage"}
+ :onyx/doc "Writes segments from the :rows keys to the SQL database"}
+```
+
+Lifecycle entry:
+
+```clojure
+{:lifecycle/task :write-rows
+ :lifecycle/calls :onyx.plugin.sql/write-rows-calls}
 ```
 
 #### Attributes

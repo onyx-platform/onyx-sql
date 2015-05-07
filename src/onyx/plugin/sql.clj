@@ -2,7 +2,6 @@
   (:require [clojure.java.jdbc :as jdbc]
             [clojure.core.async :refer [chan >! >!! <!! close! go timeout alts!!]]
             [taoensso.timbre :refer [fatal]]
-            [onyx.peer.task-lifecycle-extensions :as l-ext]
             [onyx.peer.pipeline-extensions :as p-ext]
             [onyx.extensions :as extensions]
             [honeysql.core :as sql])
@@ -41,8 +40,8 @@
             :id (:sql/id task-map)})
          ranges)))
 
-(defmethod l-ext/inject-lifecycle-resources :sql/partition-keys
-  [_ {:keys [onyx.core/task-map onyx.core/log onyx.core/task-id] :as event}]
+(defn inject-partition-keys
+  [{:keys [onyx.core/task-map onyx.core/log onyx.core/task-id] :as event} lifecycle]
   (let [pool (task->pool task-map)
         ch (chan (or (:sql/read-buffer task-map) 1000))]
     (go
@@ -60,6 +59,11 @@
     {:sql/pool pool
      :sql/read-ch ch
      :sql/pending-messages (atom {})}))
+
+(defn close-partition-keys
+  [{:keys [sql/pool] :as event} lifecycle]
+  (.close (:datasource pool))
+  {})
 
 (defmethod p-ext/read-batch :sql/partition-keys
   [{:keys [sql/read-ch sql/pending-messages onyx.core/task-map]}]
@@ -118,11 +122,16 @@
     (and (= (count (keys x)) 1)
          (= (first (map :message (vals x))) :done))))
 
-(defmethod l-ext/inject-lifecycle-resources :sql/read-rows
-  [_ {:keys [onyx.core/task-map] :as event}]
+(defn inject-read-rows
+  [{:keys [onyx.core/task-map] :as event} lifecycle]
   (let [pool (task->pool task-map)]
     {:sql/pool pool
      :onyx.core/params [pool]}))
+
+(defn close-read-rows
+  [{:keys [sql/pool] :as event} lifecycle]
+  (.close (:datasource pool))
+  {})
 
 (defn read-rows [pool {:keys [table id low high] :as segment}]
   (let [sql-map {:select [:*]
@@ -132,22 +141,12 @@
                          [:<= id high]]}]
     (jdbc/query pool (sql/format sql-map))))
 
-(defmethod l-ext/inject-lifecycle-resources :sql/write-rows
-  [_ {:keys [onyx.core/task-map] :as event}]
+(defn inject-write-rows
+  [{:keys [onyx.core/task-map] :as event} lifecycle]
   {:sql/pool (task->pool task-map)})
 
-(defmethod l-ext/close-lifecycle-resources :sql/partition-keys
-  [_ {:keys [sql/pool] :as event}]
-  (.close (:datasource pool))
-  {})
-
-(defmethod l-ext/close-lifecycle-resources :sql/read-rows
-  [_ {:keys [sql/pool] :as event}]
-  (.close (:datasource pool))
-  {})
-
-(defmethod l-ext/close-lifecycle-resources :sql/write-rows
-  [_ {:keys [sql/pool] :as event}]
+(defn close-write-rows
+  [{:keys [sql/pool] :as event} lifecycle]
   (.close (:datasource pool))
   {})
 
@@ -163,3 +162,15 @@
 (defmethod p-ext/seal-resource :sql/write-rows
   [event]
   {})
+
+(def partition-keys-calls
+  {:lifecycle/before-task inject-partition-keys
+   :lifecycle/after-task close-partition-keys})
+
+(def read-rows-calls
+  {:lifecycle/before-task inject-read-rows
+   :lifecycle/after-task close-read-rows})
+
+(def write-rows-calls
+  {:lifecycle/before-task inject-write-rows
+   :lifecycle/after-task close-write-rows})
