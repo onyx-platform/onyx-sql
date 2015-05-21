@@ -46,13 +46,15 @@
         ch (chan (or (:sql/read-buffer task-map) 1000))]
     (go
      (try
-       (let [partitions (partition-table (assoc event :sql/pool pool))]
-         (extensions/write-chunk log :chunk-index (count partitions) task-id)
-
-         (doseq [partition partitions]
-           (let [content {:partition partition :status :incomplete}
-                 chunk-id (extensions/write-chunk log :chunk content task-id)]
-             (>! ch {:content content :chunk-id chunk-id})))
+       (let [partitions (partition-table (assoc event :sql/pool pool))
+             chunk (map (fn [p] {:partition p :status :incomplete}) partitions)
+             ;; Attempt to write. It will fail if it's already been written. Read it back
+             ;; in either case.
+             _ (extensions/write-chunk log :chunk chunk task-id)
+             content (extensions/read-chunk log :chunk task-id)]
+         ;; Remove messages that are already acknowledged.
+         (doseq [part (remove #(= (:status %) :acked) content)]
+           (>! ch {:content part}))
          (>! ch :done))
        (catch Exception e
          (fatal e))))
@@ -78,38 +80,40 @@
                           (let [result (first (alts!! [read-ch timeout-ch] :priority true))]
                             (if (= :done result)
                               {:id (java.util.UUID/randomUUID)
-                               :input :datomic
+                               :input :sql
                                :message :done}
                               {:id (java.util.UUID/randomUUID)
                                :input :sql
-                               :message (:partition (:content result))
-                               :chunk-id (:chunk-id result)}))))
+                               :message (:partition (:content result))}))))
                    (remove (comp nil? :message)))]
     (doseq [m batch]
-      (swap! pending-messages assoc (:id m) (select-keys m [:message :chunk-id])))
+      (swap! pending-messages assoc (:id m) (select-keys m [:message])))
     {:onyx.core/batch batch}))
+
+(defn update-partition [content new-content part]
+  (map
+   (fn [c]
+     (if (= (:partition c) part)
+       new-content
+       c))
+   content))
 
 (defmethod p-ext/ack-message :sql/partition-keys
   [{:keys [sql/pending-messages onyx.core/log onyx.core/task-id]} message-id]
-  (try
-    (if-let [chunk-id (:chunk-id (get @pending-messages message-id))]
-      (let [content {:status :acked :id chunk-id}]
-        (extensions/force-write-chunk log :chunk content task-id)
-        (swap! pending-messages dissoc message-id))
-      (swap! pending-messages dissoc message-id))
-    (catch Exception e
-      (fatal e))))
+  (let [part (get @pending-messages message-id)
+        content {:status :acked :partition (:message part)}
+        read-content (extensions/read-chunk log :chunk task-id)
+        updated-content (update-partition read-content content message-id)]
+    (extensions/force-write-chunk log :chunk updated-content task-id)
+    (swap! pending-messages dissoc message-id)))
 
 (defmethod p-ext/retry-message :sql/partition-keys
-  [{:keys [sql/pending-messages sql/read-ch onyx.core/log]} message-id]
+  [{:keys [sql/pending-messages sql/read-ch onyx.core/log onyx.core/task-id]} message-id]
   (let [snapshot @pending-messages
-        message (get snapshot message-id)
-        content {:status :incomplete :partition (:partition message)}]
+        message (get snapshot message-id)]
     (swap! pending-messages dissoc message-id)
     (if (:partition message)
-      (do
-        (extensions/force-write-chunk log :chunk content (:path message))
-        (>!! read-ch {:partition (:partition message) :status :incomplete :path (:path message)}))
+      (>!! read-ch {:partition (:partition message)})
       (>!! read-ch :done))))
 
 (defmethod p-ext/pending? :sql/partition-keys
@@ -164,13 +168,13 @@
   {})
 
 (def partition-keys-calls
-  {:lifecycle/before-task inject-partition-keys
-   :lifecycle/after-task close-partition-keys})
+  {:lifecycle/before-task-start inject-partition-keys
+   :lifecycle/after-task-stop close-partition-keys})
 
 (def read-rows-calls
-  {:lifecycle/before-task inject-read-rows
-   :lifecycle/after-task close-read-rows})
+  {:lifecycle/before-task-start inject-read-rows
+   :lifecycle/after-task-stop close-read-rows})
 
 (def write-rows-calls
-  {:lifecycle/before-task inject-write-rows
-   :lifecycle/after-task close-write-rows})
+  {:lifecycle/before-task-start inject-write-rows
+   :lifecycle/after-task-stop close-write-rows})
