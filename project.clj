@@ -1,4 +1,4 @@
-(defproject org.onyxplatform/onyx-sql "0.6.0-RC1"
+(defproject org.onyxplatform/onyx-sql "0.6.0"
   :description "Onyx plugin for JDBC-backed SQL databases"
   :url "https://github.com/MichaelDrogalis/onyx-sql"
   :license {:name "Eclipse Public License"
@@ -7,7 +7,7 @@
                  [org.clojure/core.async "0.1.346.0-17112a-alpha"]
                  [org.clojure/java.jdbc "0.3.3"]
                  [com.mchange/c3p0 "0.9.2.1"]
-                 [org.onyxplatform/onyx "0.6.0-RC1"]
+                 [org.onyxplatform/onyx "0.6.0"]
                  [com.taoensso/timbre "3.0.1"]
                  [honeysql "0.5.1"]]
   :profiles {:dev {:dependencies [[midje "1.6.2"]
