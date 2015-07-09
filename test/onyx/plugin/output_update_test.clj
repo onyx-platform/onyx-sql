@@ -118,7 +118,7 @@
     :onyx/doc "Transforms a segment to prepare for SQL persistence"}
 
    {:onyx/name :out
-    :onyx/ident :sql/write-rows
+    :onyx/ident :sql/update-rows
     :onyx/type :output
     :onyx/medium :sql
     :sql/classname "com.mysql.jdbc.Driver"
@@ -127,7 +127,6 @@
     :sql/user db-user
     :sql/password ""
     :sql/table :words
-    :sql/update true
     :onyx/batch-size 1000
     :onyx/doc "Writes segments from the :rows keys to the SQL database based on :where key"}])
 
@@ -143,7 +142,7 @@
    {:lifecycle/task :in
     :lifecycle/calls :onyx.plugin.core-async/reader-calls}
    {:lifecycle/task :out
-    :lifecycle/calls :onyx.plugin.sql/write-rows-calls}])
+    :lifecycle/calls :onyx.plugin.sql/update-rows-calls}])
 
 (def v-peers (onyx.api/start-peers 3 peer-group))
 

@@ -155,20 +155,38 @@
   (.close (:datasource pool))
   {})
 
+(defn inject-update-rows
+  [{:keys [onyx.core/task-map] :as event} lifecycle]
+  {:sql/pool (task->pool task-map)})
+
+(defn close-update-rows
+  [{:keys [sql/pool] :as event} lifecycle]
+  (.close (:datasource pool))
+  {})
+
 (defmethod p-ext/write-batch :sql/write-rows
   [{:keys [onyx.core/results onyx.core/task-map sql/pool] :as event}]
   (doseq [msg (mapcat :leaves results)]
     (jdbc/with-db-transaction
       [conn pool]
-      (if (:sql/update task-map)
-        (doseq [row (:rows (:message msg))]
-          (jdbc/update! conn (:sql/table task-map) row (sql-dsl/where (:where (:message msg)))))
-        (doseq [row (:rows (:message msg))]
-          (jdbc/insert! conn (:sql/table task-map) row)))
-      ))
+      (doseq [row (:rows (:message msg))]
+        (jdbc/insert! conn (:sql/table task-map) row))))
   {:onyx.core/written? true})
 
 (defmethod p-ext/seal-resource :sql/write-rows
+  [event]
+  {})
+
+(defmethod p-ext/write-batch :sql/update-rows
+  [{:keys [onyx.core/results onyx.core/task-map sql/pool] :as event}]
+  (doseq [msg (mapcat :leaves results)]
+    (jdbc/with-db-transaction
+      [conn pool]
+      (doseq [row (:rows (:message msg))]
+        (jdbc/update! conn (:sql/table task-map) row (sql-dsl/where (:where (:message msg)))))))
+  {:onyx.core/written? true})
+
+(defmethod p-ext/seal-resource :sql/update-rows
   [event]
   {})
 
@@ -183,3 +201,7 @@
 (def write-rows-calls
   {:lifecycle/before-task-start inject-write-rows
    :lifecycle/after-task-stop close-write-rows})
+
+(def update-rows-calls
+  {:lifecycle/before-task-start inject-update-rows
+   :lifecycle/after-task-stop close-update-rows})
