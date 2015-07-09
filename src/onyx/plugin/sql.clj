@@ -183,7 +183,3 @@
 (def write-rows-calls
   {:lifecycle/before-task-start inject-write-rows
    :lifecycle/after-task-stop close-write-rows})
-
-(def update-rows-calls
-  {:lifecycle/before-task-start inject-write-rows
-   :lifecycle/after-task-stop close-write-rows})
