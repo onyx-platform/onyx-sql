@@ -10,3 +10,5 @@ pom.xml.asc
 onyx.log
 data
 hs_err_pid*
+*.iml
+.idea/

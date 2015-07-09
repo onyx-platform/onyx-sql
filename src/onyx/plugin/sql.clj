@@ -4,7 +4,8 @@
             [taoensso.timbre :refer [fatal]]
             [onyx.peer.pipeline-extensions :as p-ext]
             [onyx.extensions :as extensions]
-            [honeysql.core :as sql])
+            [honeysql.core :as sql]
+            [java-jdbc.sql :as sql-dsl])
   (:import [com.mchange.v2.c3p0 ComboPooledDataSource]))
 
 (defn create-pool [spec]
@@ -159,8 +160,12 @@
   (doseq [msg (mapcat :leaves results)]
     (jdbc/with-db-transaction
       [conn pool]
-      (doseq [row (:rows (:message msg))]
-        (jdbc/insert! conn (:sql/table task-map) row))))
+      (if (:sql/update task-map)
+        (doseq [row (:rows (:message msg))]
+          (jdbc/update! conn (:sql/table task-map) row (sql-dsl/where (:where (:message msg)))))
+        (doseq [row (:rows (:message msg))]
+          (jdbc/insert! conn (:sql/table task-map) row)))
+      ))
   {:onyx.core/written? true})
 
 (defmethod p-ext/seal-resource :sql/write-rows
@@ -176,5 +181,9 @@
    :lifecycle/after-task-stop close-read-rows})
 
 (def write-rows-calls
+  {:lifecycle/before-task-start inject-write-rows
+   :lifecycle/after-task-stop close-write-rows})
+
+(def update-rows-calls
   {:lifecycle/before-task-start inject-write-rows
    :lifecycle/after-task-stop close-write-rows})
