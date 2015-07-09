@@ -6,6 +6,7 @@
   :dependencies [[org.clojure/clojure "1.6.0"]
                  [org.clojure/core.async "0.1.346.0-17112a-alpha"]
                  [org.clojure/java.jdbc "0.3.3"]
+                 [java-jdbc/dsl "0.1.3"]
                  [com.mchange/c3p0 "0.9.2.1"]
                  [org.onyxplatform/onyx "0.6.0-RC1"]
                  [com.taoensso/timbre "3.0.1"]
