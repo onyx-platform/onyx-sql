@@ -113,7 +113,7 @@
     :sql/password db-pass
     :sql/table :people
     :sql/id :id
-    :sql/rows-per-segment 1000
+    :sql/rows-per-segment 2
     :onyx/batch-size 1000
     :onyx/max-peers 1
     :onyx/doc "Partitions a range of primary keys into subranges"}
