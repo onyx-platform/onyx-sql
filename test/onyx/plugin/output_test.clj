@@ -38,9 +38,9 @@
 (def db-name (or (env :test-db-name) "onyx_output_test"))
 
 (def db-sub-base 
-  "//192.168.59.103:3306")
+  "//127.0.0.1:3306")
 
-(def db-pass "aaab")
+(def db-pass "")
 
 (def db-spec
   {:classname "com.mysql.jdbc.Driver"

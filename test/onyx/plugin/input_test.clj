@@ -41,7 +41,6 @@
 
 (def db-pass "")
 
-
 (def db-spec
   {:classname "com.mysql.jdbc.Driver"
    :subprotocol "mysql"
