@@ -36,12 +36,18 @@
 
 (def db-name (or (env :test-db-name) "onyx_input_test"))
 
+(def db-sub-base 
+  "//127.0.0.1:3306")
+
+(def db-pass "")
+
+
 (def db-spec
   {:classname "com.mysql.jdbc.Driver"
    :subprotocol "mysql"
-   :subname "//127.0.0.1:3306"
+   :subname db-sub-base
    :user db-user
-   :password ""})
+   :password db-pass})
 
 (defn pool [spec]
   {:datasource
@@ -66,9 +72,9 @@
 (def db-spec
   {:classname "com.mysql.jdbc.Driver"
    :subprotocol "mysql"
-   :subname (str "//127.0.0.1:3306/" db-name)
+   :subname (str db-sub-base "/" db-name)
    :user db-user
-   :password ""})
+   :password db-pass})
 
 (def conn-pool (pool db-spec))
 
@@ -98,14 +104,14 @@
 
 (def catalog
   [{:onyx/name :partition-keys
-    :onyx/ident :sql/partition-keys
+    :onyx/plugin :onyx.plugin.sql/partition-keys
     :onyx/type :input
     :onyx/medium :sql
     :sql/classname "com.mysql.jdbc.Driver"
     :sql/subprotocol "mysql"
-    :sql/subname (str "//127.0.0.1:3306/" db-name)
+    :sql/subname (str db-sub-base "/" db-name)
     :sql/user db-user
-    :sql/password ""
+    :sql/password db-pass
     :sql/table :people
     :sql/id :id
     :sql/rows-per-segment 1000
@@ -114,15 +120,14 @@
     :onyx/doc "Partitions a range of primary keys into subranges"}
 
    {:onyx/name :read-rows
-    :onyx/ident :sql/read-rows
     :onyx/fn :onyx.plugin.sql/read-rows
     :onyx/type :function
     :onyx/batch-size 1000
     :sql/classname "com.mysql.jdbc.Driver"
     :sql/subprotocol "mysql"
-    :sql/subname (str "//127.0.0.1:3306/" db-name)
+    :sql/subname (str db-sub-base "/" db-name)
     :sql/user db-user
-    :sql/password ""
+    :sql/password db-pass
     :sql/table :people
     :sql/id :id
     :onyx/doc "Reads rows of a SQL table bounded by a key range"}
@@ -134,7 +139,7 @@
     :onyx/doc "Capitilizes the :name key"}
 
    {:onyx/name :persist
-    :onyx/ident :core.async/write-to-chan
+    :onyx/plugin :onyx.plugin.core-async/output
     :onyx/type :output
     :onyx/medium :core.async
     :onyx/batch-size 1000

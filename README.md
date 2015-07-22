@@ -26,7 +26,7 @@ Catalog entry:
 
 ```clojure
 {:onyx/name :partition-keys
- :onyx/ident :sql/partition-keys
+ :onyx/plugin :onyx.plugin.sql/partition-keys
  :onyx/type :input
  :onyx/medium :sql
  :sql/classname "my.class.name"
@@ -86,7 +86,7 @@ Catalog entry:
 
 ```clojure
 {:onyx/name :write-rows
- :onyx/ident :sql/write-rows
+ :onyx/plugin :onyx.plugin.sql/write-rows
  :onyx/type :output
  :onyx/medium :sql
  :sql/classname "my.class.name"

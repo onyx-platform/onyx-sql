@@ -37,12 +37,17 @@
 
 (def db-name (or (env :test-db-name) "onyx_output_test"))
 
+(def db-sub-base 
+  "//192.168.59.103:3306")
+
+(def db-pass "aaab")
+
 (def db-spec
   {:classname "com.mysql.jdbc.Driver"
    :subprotocol "mysql"
-   :subname "//127.0.0.1:3306"
+   :subname db-sub-base
    :user db-user
-   :password ""})
+   :password db-pass})
 
 (defn pool [spec]
   {:datasource
@@ -67,9 +72,9 @@
 (def db-spec
   {:classname "com.mysql.jdbc.Driver"
    :subprotocol "mysql"
-   :subname (str "//127.0.0.1:3306/" db-name)
+   :subname (str db-sub-base "/" db-name)
    :user db-user
-   :password ""})
+   :password db-pass})
 
 (def conn-pool (pool db-spec))
 
@@ -100,7 +105,7 @@
 
 (def catalog
   [{:onyx/name :in
-    :onyx/ident :core.async/read-from-chan
+    :onyx/plugin :onyx.plugin.core-async/input
     :onyx/type :input
     :onyx/medium :core.async
     :onyx/batch-size 1000
@@ -114,14 +119,14 @@
     :onyx/doc "Transforms a segment to prepare for SQL persistence"}
 
    {:onyx/name :out
-    :onyx/ident :sql/write-rows
+    :onyx/plugin :onyx.plugin.sql/write-rows
     :onyx/type :output
     :onyx/medium :sql
     :sql/classname "com.mysql.jdbc.Driver"
     :sql/subprotocol "mysql"
-    :sql/subname (str "//127.0.0.1:3306/" db-name)
+    :sql/subname (str db-sub-base "/" db-name)
     :sql/user db-user
-    :sql/password ""
+    :sql/password db-pass
     :sql/table :words
     :onyx/batch-size 1000
     :onyx/doc "Writes segments from the :rows keys to the SQL database"}])

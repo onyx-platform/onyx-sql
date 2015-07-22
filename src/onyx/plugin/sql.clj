@@ -3,6 +3,9 @@
             [clojure.core.async :refer [chan >! >!! <!! close! go timeout alts!!]]
             [taoensso.timbre :refer [fatal]]
             [onyx.peer.pipeline-extensions :as p-ext]
+            [onyx.types :as t]
+            [onyx.static.default-vals :refer [arg-or-default]]
+            [onyx.peer.function :as function]
             [onyx.extensions :as extensions]
             [honeysql.core :as sql])
   (:import [com.mchange.v2.c3p0 ComboPooledDataSource]))
@@ -41,9 +44,11 @@
          ranges)))
 
 (defn inject-partition-keys
-  [{:keys [onyx.core/task-map onyx.core/log onyx.core/task-id] :as event} lifecycle]
-  (let [pool (task->pool task-map)
-        ch (chan (or (:sql/read-buffer task-map) 1000))]
+  [{:keys [onyx.core/pipeline onyx.core/task-map onyx.core/log onyx.core/task-id] :as event} 
+   lifecycle]
+  (let [ch (:read-ch pipeline)
+        pending-messages (:pending-messages pipeline)
+        pool (task->pool task-map)]
     (go
      (try
        (let [partitions (partition-table (assoc event :sql/pool pool))
@@ -60,35 +65,12 @@
          (fatal e))))
     {:sql/pool pool
      :sql/read-ch ch
-     :sql/pending-messages (atom {})}))
+     :sql/pending-messages pending-messages}))
 
 (defn close-partition-keys
   [{:keys [sql/pool] :as event} lifecycle]
   (.close (:datasource pool))
   {})
-
-(defmethod p-ext/read-batch :sql/partition-keys
-  [{:keys [sql/read-ch sql/pending-messages onyx.core/task-map]}]
-  (let [pending (count (keys @pending-messages))
-        max-pending (or (:onyx/max-pending task-map) 10000)
-        batch-size (:onyx/batch-size task-map)
-        max-segments (min (- max-pending pending) batch-size)
-        ms (or (:onyx/batch-timeout task-map) 50)
-        timeout-ch (timeout ms)
-        batch (->> (range max-segments)
-                   (map (fn [_]
-                          (let [result (first (alts!! [read-ch timeout-ch] :priority true))]
-                            (if (= :done result)
-                              {:id (java.util.UUID/randomUUID)
-                               :input :sql
-                               :message :done}
-                              {:id (java.util.UUID/randomUUID)
-                               :input :sql
-                               :message (:partition (:content result))}))))
-                   (remove (comp nil? :message)))]
-    (doseq [m batch]
-      (swap! pending-messages assoc (:id m) (select-keys m [:message])))
-    {:onyx.core/batch batch}))
 
 (defn update-partition [content new-content part]
   (map
@@ -98,33 +80,72 @@
        c))
    content))
 
-(defmethod p-ext/ack-message :sql/partition-keys
-  [{:keys [sql/pending-messages onyx.core/log onyx.core/task-id]} message-id]
-  (let [part (get @pending-messages message-id)
-        content {:status :acked :partition (:message part)}
-        read-content (extensions/read-chunk log :chunk task-id)
-        updated-content (update-partition read-content content message-id)]
-    (extensions/force-write-chunk log :chunk updated-content task-id)
-    (swap! pending-messages dissoc message-id)))
+(defrecord SqlPartitionKeys [max-pending batch-size batch-timeout log task-id 
+                             pending-messages drained? read-ch]
+  p-ext/Pipeline
+  (write-batch 
+    [this event]
+    (function/write-batch event))
 
-(defmethod p-ext/retry-message :sql/partition-keys
-  [{:keys [sql/pending-messages sql/read-ch onyx.core/log onyx.core/task-id]} message-id]
-  (let [snapshot @pending-messages
-        message (get snapshot message-id)]
-    (swap! pending-messages dissoc message-id)
-    (if (:partition message)
-      (>!! read-ch {:partition (:partition message)})
-      (>!! read-ch :done))))
+  (read-batch [_ event]
+    (let [pending (count (keys @pending-messages))
+          max-segments (min (- max-pending pending) batch-size)
+          timeout-ch (timeout batch-timeout)
+          batch (->> (range max-segments)
+                     (map (fn [_]
+                            (let [result (first (alts!! [read-ch timeout-ch] :priority true))]
+                              (if (= result :done)
+                                (t/input (java.util.UUID/randomUUID) :done)
+                                {:id (java.util.UUID/randomUUID)
+                                 :message (:partition (:content result))}))))
+                     (filter :message))]
+      (doseq [m batch]
+        (swap! pending-messages assoc (:id m) m))
+      (when (and (= 1 (count @pending-messages))
+                 (= (count batch) 1)
+                 (= (:message (first batch)) :done))
+        (reset! drained? true))
+      {:onyx.core/batch batch}))
 
-(defmethod p-ext/pending? :sql/partition-keys
-  [{:keys [sql/pending-messages]} message-id]
-  (get @pending-messages message-id))
+  p-ext/PipelineInput
 
-(defmethod p-ext/drained? :sql/partition-keys
-  [{:keys [sql/pending-messages]}]
-  (let [x @pending-messages]
-    (and (= (count (keys x)) 1)
-         (= (first (map :message (vals x))) :done))))
+  (ack-message [_ _ message-id]
+    (let [part (get @pending-messages message-id)
+          content {:status :acked :partition (:message part)}
+          read-content (extensions/read-chunk log :chunk task-id)
+          updated-content (update-partition read-content content message-id)]
+      (extensions/force-write-chunk log :chunk updated-content task-id)
+      (swap! pending-messages dissoc message-id)))
+
+  (retry-message 
+    [_ _ message-id]
+    (let [snapshot @pending-messages
+          message (get snapshot message-id)]
+      (swap! pending-messages dissoc message-id)
+      (if (:partition message)
+        (>!! read-ch {:partition (:partition message)})
+        (>!! read-ch :done))))
+
+  (pending?
+    [_ _ message-id]
+    (get @pending-messages message-id))
+
+  (drained? 
+    [_ _]
+    @drained?))
+
+(defn partition-keys [pipeline-data]
+  (let [catalog-entry (:onyx.core/task-map pipeline-data)
+        max-pending (arg-or-default :onyx/max-pending catalog-entry)
+        batch-size (:onyx/batch-size catalog-entry)
+        batch-timeout (arg-or-default :onyx/batch-timeout catalog-entry)
+        ch (chan (or (:sql/read-buffer catalog-entry) 1000))
+        pending-messages (atom {})
+        drained? (atom false)
+        log (:onyx.core/log pipeline-data)
+        task-id (:onyx.core/task-id pipeline-data)]
+    (->SqlPartitionKeys max-pending batch-size batch-timeout log task-id
+                        pending-messages drained? ch)))
 
 (defn inject-read-rows
   [{:keys [onyx.core/task-map] :as event} lifecycle]
@@ -146,26 +167,38 @@
     (jdbc/query pool (sql/format sql-map))))
 
 (defn inject-write-rows
-  [{:keys [onyx.core/task-map] :as event} lifecycle]
-  {:sql/pool (task->pool task-map)})
+  [{:keys [onyx.core/pipeline] :as event} lifecycle]
+  {:sql/pool (:pool pipeline)})
 
 (defn close-write-rows
   [{:keys [sql/pool] :as event} lifecycle]
   (.close (:datasource pool))
   {})
 
-(defmethod p-ext/write-batch :sql/write-rows
-  [{:keys [onyx.core/results onyx.core/task-map sql/pool] :as event}]
-  (doseq [msg (mapcat :leaves results)]
-    (jdbc/with-db-transaction
-      [conn pool]
-      (doseq [row (:rows (:message msg))]
-        (jdbc/insert! conn (:sql/table task-map) row))))
-  {:onyx.core/written? true})
+(defrecord SqlWriteRows [pool table]
+  p-ext/Pipeline
+  (read-batch 
+    [_ event]
+    (function/read-batch event))
 
-(defmethod p-ext/seal-resource :sql/write-rows
-  [event]
-  {})
+  (write-batch 
+    [_ {:keys [onyx.core/results ]}]
+    (doseq [msg (mapcat :leaves (:tree results))]
+      (jdbc/with-db-transaction
+        [conn pool]
+        (doseq [row (:rows (:message msg))]
+          (jdbc/insert! conn table row))))
+    {:onyx.core/written? true})
+
+  (seal-resource 
+    [_ {:keys [onyx.core/results]}]
+    {}))
+
+(defn write-rows [pipeline-data]
+  (let [task-map (:onyx.core/task-map pipeline-data)
+        table (:sql/table task-map)
+        pool (task->pool task-map)]
+    (->SqlWriteRows pool table)))
 
 (def partition-keys-calls
   {:lifecycle/before-task-start inject-partition-keys
