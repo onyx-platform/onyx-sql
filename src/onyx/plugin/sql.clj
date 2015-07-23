@@ -109,26 +109,26 @@
 
   p-ext/PipelineInput
 
-  (ack-message [_ _ message-id]
-    (let [part (get @pending-messages message-id)
+  (ack-segment [_ _ segment-id]
+    (let [part (get @pending-messages segment-id)
           content {:status :acked :partition (:message part)}
           read-content (extensions/read-chunk log :chunk task-id)
           updated-content (update-partition read-content content (:message part))]
       (extensions/force-write-chunk log :chunk updated-content task-id)
-      (swap! pending-messages dissoc message-id)))
+      (swap! pending-messages dissoc segment-id)))
 
-  (retry-message 
-    [_ _ message-id]
+  (retry-segment 
+    [_ _ segment-id]
     (let [snapshot @pending-messages
-          message (get snapshot message-id)]
-      (swap! pending-messages dissoc message-id)
+          message (get snapshot segment-id)]
+      (swap! pending-messages dissoc segment-id)
       (if (:partition message)
         (>!! read-ch {:partition (:partition message)})
         (>!! read-ch :done))))
 
   (pending?
-    [_ _ message-id]
-    (get @pending-messages message-id))
+    [_ _ segment-id]
+    (get @pending-messages segment-id))
 
   (drained? 
     [_ _]
@@ -182,7 +182,7 @@
     (function/read-batch event))
 
   (write-batch 
-    [_ {:keys [onyx.core/results ]}]
+    [_ {:keys [onyx.core/results]}]
     (doseq [msg (mapcat :leaves (:tree results))]
       (jdbc/with-db-transaction
         [conn pool]
