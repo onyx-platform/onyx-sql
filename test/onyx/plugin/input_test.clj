@@ -121,7 +121,7 @@
    {:onyx/name :read-rows
     :onyx/fn :onyx.plugin.sql/read-rows
     :onyx/type :function
-    :onyx/batch-size 1000
+    :onyx/batch-size 1
     :sql/classname "com.mysql.jdbc.Driver"
     :sql/subprotocol "mysql"
     :sql/subname (str db-sub-base "/" db-name)

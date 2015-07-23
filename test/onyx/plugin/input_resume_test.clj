@@ -118,7 +118,7 @@
     :sql/id :id
     :sql/rows-per-segment 2
     :onyx/restart-pred-fn :onyx.plugin.input-resume-test/restartable?
-    :onyx/batch-size 1000
+    :onyx/batch-size 1
     :onyx/max-peers 1
     :onyx/doc "Partitions a range of primary keys into subranges"}
 
@@ -155,6 +155,8 @@
 (def persist-calls
   {:lifecycle/before-task-start inject-persist-ch})
 
+(def batch-num (atom 0))
+
 (def read-crash
   {:lifecycle/before-batch 
    (fn [event lifecycle]
@@ -162,7 +164,8 @@
      ; since we want to ensure that the batches aren't re-read on restart
      (Thread/sleep 7000)
      (when (= (swap! batch-num inc) 2)
-       (throw (ex-info "Restartable" {:restartable? true}))))})
+       (throw (ex-info "Restartable" {:restartable? true})))
+     {})})
 
 (def lifecycles
   [{:lifecycle/task :partition-keys
@@ -176,7 +179,7 @@
    {:lifecycle/task :persist
     :lifecycle/calls :onyx.plugin.core-async/writer-calls}])
 
-(def v-peers (onyx.api/start-peers 4 peer-group))
+(def v-peers (onyx.api/start-peers 5 peer-group))
 
 (onyx.api/submit-job
  peer-config

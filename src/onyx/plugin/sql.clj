@@ -96,8 +96,8 @@
                             (let [result (first (alts!! [read-ch timeout-ch] :priority true))]
                               (if (= result :done)
                                 (t/input (java.util.UUID/randomUUID) :done)
-                                {:id (java.util.UUID/randomUUID)
-                                 :message (:partition (:content result))}))))
+                                (t/input (java.util.UUID/randomUUID) 
+                                         (:partition (:content result)))))))
                      (filter :message))]
       (doseq [m batch]
         (swap! pending-messages assoc (:id m) m))
@@ -113,7 +113,7 @@
     (let [part (get @pending-messages message-id)
           content {:status :acked :partition (:message part)}
           read-content (extensions/read-chunk log :chunk task-id)
-          updated-content (update-partition read-content content message-id)]
+          updated-content (update-partition read-content content (:message part))]
       (extensions/force-write-chunk log :chunk updated-content task-id)
       (swap! pending-messages dissoc message-id)))
 
