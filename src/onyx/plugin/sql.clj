@@ -212,7 +212,7 @@
 
   (write-batch
     [_ {:keys [onyx.core/results onyx.core/task-map sql/pool]}]
-    (doseq [msg (mapcat :leaves results)]
+    (doseq [msg (mapcat :leaves (:tree results))]
       (jdbc/with-db-transaction
         [conn pool]
         (doseq [row (:rows (:message msg))]

@@ -90,7 +90,6 @@
 (doseq [word words]
   (jdbc/insert! conn-pool :words word))
 
-
 (def update-in-chan (chan 1000))
 
 (doseq [word words]
@@ -104,7 +103,7 @@
 
 (def catalog
   [{:onyx/name :in
-    :onyx/plugin :onyx.plugin.core-async/output
+    :onyx/plugin :onyx.plugin.core-async/input
     :onyx/type :input
     :onyx/medium :core.async
     :onyx/batch-size 1000
@@ -118,7 +117,7 @@
     :onyx/doc "Transforms a segment to prepare for SQL persistence"}
 
    {:onyx/name :out
-    :onyx/plugin ::onyx.plugin.sql/upsert-rows
+    :onyx/plugin :onyx.plugin.sql/upsert-rows
     :onyx/type :output
     :onyx/medium :sql
     :sql/classname "com.mysql.jdbc.Driver"
