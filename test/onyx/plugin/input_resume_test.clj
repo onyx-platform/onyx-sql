@@ -1,4 +1,4 @@
-(ns onyx.plugin.input-test
+(ns onyx.plugin.input-resume-test
   (:require [clojure.java.jdbc :as jdbc]
             [clojure.core.async :refer [chan >!! <!!]]
             [onyx.plugin.core-async :refer [take-segments!]]
@@ -101,6 +101,9 @@
 
 (def out-chan (chan 1000))
 
+(defn restartable? [e] 
+  true)
+
 (def catalog
   [{:onyx/name :partition-keys
     :onyx/plugin :onyx.plugin.sql/partition-keys
@@ -114,14 +117,15 @@
     :sql/table :people
     :sql/id :id
     :sql/rows-per-segment 2
-    :onyx/batch-size 1000
+    :onyx/restart-pred-fn :onyx.plugin.input-resume-test/restartable?
+    :onyx/batch-size 1
     :onyx/max-peers 1
     :onyx/doc "Partitions a range of primary keys into subranges"}
 
    {:onyx/name :read-rows
     :onyx/fn :onyx.plugin.sql/read-rows
     :onyx/type :function
-    :onyx/batch-size 1
+    :onyx/batch-size 1000
     :sql/classname "com.mysql.jdbc.Driver"
     :sql/subprotocol "mysql"
     :sql/subname (str db-sub-base "/" db-name)
@@ -132,7 +136,7 @@
     :onyx/doc "Reads rows of a SQL table bounded by a key range"}
 
    {:onyx/name :capitalize
-    :onyx/fn :onyx.plugin.input-test/capitalize
+    :onyx/fn :onyx.plugin.input-resume-test/capitalize
     :onyx/type :function
     :onyx/batch-size 1000
     :onyx/doc "Capitilizes the :name key"}
@@ -151,17 +155,31 @@
 (def persist-calls
   {:lifecycle/before-task-start inject-persist-ch})
 
+(def batch-num (atom 0))
+
+(def read-crash
+  {:lifecycle/before-batch 
+   (fn [event lifecycle]
+     ; give the peer a bit of time to write the chunks out and ack the batches,
+     ; since we want to ensure that the batches aren't re-read on restart
+     (Thread/sleep 7000)
+     (when (= (swap! batch-num inc) 2)
+       (throw (ex-info "Restartable" {:restartable? true})))
+     {})})
+
 (def lifecycles
   [{:lifecycle/task :partition-keys
     :lifecycle/calls :onyx.plugin.sql/partition-keys-calls}
+   {:lifecycle/task :partition-keys
+    :lifecycle/calls :onyx.plugin.input-resume-test/read-crash}
    {:lifecycle/task :read-rows
     :lifecycle/calls :onyx.plugin.sql/read-rows-calls}
    {:lifecycle/task :persist
-    :lifecycle/calls :onyx.plugin.input-test/persist-calls}
+    :lifecycle/calls :onyx.plugin.input-resume-test/persist-calls}
    {:lifecycle/task :persist
     :lifecycle/calls :onyx.plugin.core-async/writer-calls}])
 
-(def v-peers (onyx.api/start-peers 4 peer-group))
+(def v-peers (onyx.api/start-peers 5 peer-group))
 
 (onyx.api/submit-job
  peer-config

@@ -1,7 +1,7 @@
 test:
   override:
     - lein with-profile dev,circle-ci midje:
-        timeout: 60
+        timeout: 240
 
 machine:
   environment:
@@ -9,13 +9,6 @@ machine:
     TEST_DB_NAME: "circle_test"
   java:
     version: oraclejdk8
-
-dependencies:
-  pre:
-    - bash ./install-aeron.sh
-  cache_directories:
-    - Aeron
-    - Agrona
 
 notify:
   webhooks:

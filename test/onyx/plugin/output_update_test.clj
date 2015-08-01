@@ -104,7 +104,7 @@
 
 (def catalog
   [{:onyx/name :in
-    :onyx/ident :core.async/read-from-chan
+    :onyx/ident: :onyx.plugin.core-async/output
     :onyx/type :input
     :onyx/medium :core.async
     :onyx/batch-size 1000
@@ -118,7 +118,7 @@
     :onyx/doc "Transforms a segment to prepare for SQL persistence"}
 
    {:onyx/name :out
-    :onyx/ident :sql/update-rows
+    :onyx/ident ::onyx.plugin.sql/upsert-rows
     :onyx/type :output
     :onyx/medium :sql
     :sql/classname "com.mysql.jdbc.Driver"
@@ -142,7 +142,7 @@
    {:lifecycle/task :in
     :lifecycle/calls :onyx.plugin.core-async/reader-calls}
    {:lifecycle/task :out
-    :lifecycle/calls :onyx.plugin.sql/update-rows-calls}])
+    :lifecycle/calls :onyx.plugin.sql/upsert-rows-calls}])
 
 (def v-peers (onyx.api/start-peers 3 peer-group))
 

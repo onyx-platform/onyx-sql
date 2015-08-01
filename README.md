@@ -7,7 +7,7 @@ Onyx plugin providing read and write facilities for SQL databases with JDBC supp
 In your project file:
 
 ```clojure
-[org.onyxplatform/onyx-sql "0.6.0"]
+[org.onyxplatform/onyx-sql "0.7.0"]
 ```
 
 In your peer boot-up namespace:
@@ -26,7 +26,7 @@ Catalog entry:
 
 ```clojure
 {:onyx/name :partition-keys
- :onyx/ident :sql/partition-keys
+ :onyx/plugin :onyx.plugin.sql/partition-keys
  :onyx/type :input
  :onyx/medium :sql
  :sql/classname "my.class.name"
@@ -86,7 +86,7 @@ Catalog entry:
 
 ```clojure
 {:onyx/name :write-rows
- :onyx/ident :sql/write-rows
+ :onyx/plugin :onyx.plugin.sql/write-rows
  :onyx/type :output
  :onyx/medium :sql
  :sql/classname "my.class.name"
@@ -97,6 +97,27 @@ Catalog entry:
  :sql/table :table-name
  :onyx/batch-size batch-size
  :onyx/doc "Writes segments from the :rows keys to the SQL database"}
+```
+
+##### upsert-
+
+Upsert segments to a SQL database.
+
+Catalog entry:
+
+```clojure
+{:onyx/name :write-rows
+ :onyx/plugin :onyx.plugin.sql/upsert-rows
+ :onyx/type :output
+ :onyx/medium :sql
+ :sql/classname "my.class.name"
+ :sql/subprotocol "db-subprotocol"
+ :sql/subname "db-sub-name"
+ :sql/user "db-user"
+ :sql/password "db-pass"
+ :sql/table :table-name
+ :onyx/batch-size batch-size
+ :onyx/doc "Upserts segments from the :rows keys to the SQL database"}
 ```
 
 Lifecycle entry:
