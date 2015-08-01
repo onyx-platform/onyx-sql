@@ -104,7 +104,7 @@
 
 (def catalog
   [{:onyx/name :in
-    :onyx/ident: :onyx.plugin.core-async/output
+    :onyx/plugin: :onyx.plugin.core-async/output
     :onyx/type :input
     :onyx/medium :core.async
     :onyx/batch-size 1000
@@ -118,7 +118,7 @@
     :onyx/doc "Transforms a segment to prepare for SQL persistence"}
 
    {:onyx/name :out
-    :onyx/ident ::onyx.plugin.sql/upsert-rows
+    :onyx/plugin ::onyx.plugin.sql/upsert-rows
     :onyx/type :output
     :onyx/medium :sql
     :sql/classname "com.mysql.jdbc.Driver"
