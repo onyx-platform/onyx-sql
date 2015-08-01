@@ -104,7 +104,7 @@
 
 (def catalog
   [{:onyx/name :in
-    :onyx/plugin: :onyx.plugin.core-async/output
+    :onyx/plugin :onyx.plugin.core-async/output
     :onyx/type :input
     :onyx/medium :core.async
     :onyx/batch-size 1000
@@ -163,7 +163,6 @@
   {:id (:id word) :word (str (:word word) "!")})
 
 (fact results => (map transform-word words))
-
 
 (close! update-in-chan)
 
