@@ -7,7 +7,8 @@
             [onyx.static.default-vals :refer [arg-or-default]]
             [onyx.peer.function :as function]
             [onyx.extensions :as extensions]
-            [honeysql.core :as sql])
+            [honeysql.core :as sql]
+            [java-jdbc.sql :as sql-dsl])
   (:import [com.mchange.v2.c3p0 ComboPooledDataSource]))
 
 (defn create-pool [spec]
@@ -175,6 +176,15 @@
   (.close (:datasource pool))
   {})
 
+(defn inject-upsert-rows
+  [{:keys [onyx.core/task-map] :as event} lifecycle]
+  {:sql/pool (task->pool task-map)})
+
+(defn close-update-rows
+  [{:keys [sql/pool] :as event} lifecycle]
+  (.close (:datasource pool))
+  {})
+
 (defrecord SqlWriteRows [pool table]
   p-ext/Pipeline
   (read-batch 
@@ -194,11 +204,36 @@
     [_ {:keys [onyx.core/results]}]
     {}))
 
+(defrecord SqlUpsertRows [pool table]
+  p-ext/Pipeline
+  (read-batch 
+    [_ event]
+    (function/read-batch event))
+
+  (write-batch
+    [_ {:keys [onyx.core/results onyx.core/task-map sql/pool]}]
+    (doseq [msg (mapcat :leaves (:tree results))]
+      (jdbc/with-db-transaction
+        [conn pool]
+        (doseq [row (:rows (:message msg))]
+          (jdbc/update! conn (:sql/table task-map) row (sql-dsl/where (:where (:message msg)))))))
+    {:onyx.core/written? true})
+
+  (seal-resource 
+    [_ event]
+    {}))
+
 (defn write-rows [pipeline-data]
   (let [task-map (:onyx.core/task-map pipeline-data)
         table (:sql/table task-map)
         pool (task->pool task-map)]
     (->SqlWriteRows pool table)))
+
+(defn upsert-rows [pipeline-data]
+  (let [task-map (:onyx.core/task-map pipeline-data)
+        table (:sql/table task-map)
+        pool (task->pool task-map)]
+    (->SqlUpsertRows pool table)))
 
 (def partition-keys-calls
   {:lifecycle/before-task-start inject-partition-keys
@@ -211,3 +246,7 @@
 (def write-rows-calls
   {:lifecycle/before-task-start inject-write-rows
    :lifecycle/after-task-stop close-write-rows})
+
+(def upsert-rows-calls
+  {:lifecycle/before-task-start inject-upsert-rows
+   :lifecycle/after-task-stop close-update-rows})
