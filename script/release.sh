@@ -1,0 +1,1 @@
+echo "Releasing SQL"
