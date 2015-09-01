@@ -3,6 +3,9 @@
   :url "https://github.com/MichaelDrogalis/onyx-sql"
   :license {:name "Eclipse Public License"
             :url "http://www.eclipse.org/legal/epl-v10.html"}
+  :repositories {"snapshots" {:url "https://clojars.org/repo"
+                              :username :env
+                              :password :env}}
   :dependencies [[org.clojure/clojure "1.7.0"]
                  [org.clojure/java.jdbc "0.3.3"]
                  ^{:voom {:repo "git@github.com:onyx-platform/onyx.git" :branch "master"}}
