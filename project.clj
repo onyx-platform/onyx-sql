@@ -1,4 +1,4 @@
-(defproject org.onyxplatform/onyx-sql "0.7.4-SNAPSHOT"
+(defproject org.onyxplatform/onyx-sql "0.7.5-SNAPSHOT"
   :description "Onyx plugin for JDBC-backed SQL databases"
   :url "https://github.com/MichaelDrogalis/onyx-sql"
   :license {:name "Eclipse Public License"
@@ -23,5 +23,6 @@
                                   [mysql/mysql-connector-java "5.1.25"]]
                    :plugins [[lein-midje "3.1.3"]
                              [lein-set-version "0.4.1"]
+                             [lein-update-dependency "0.1.2"]
                              [lein-pprint "1.1.1"]]}
              :circle-ci {:jvm-opts ["-Xmx4g"]}})
