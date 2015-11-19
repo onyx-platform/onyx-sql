@@ -83,8 +83,11 @@
           [:id :int "PRIMARY KEY AUTO_INCREMENT"]
           [:name "VARCHAR(32)"])))
 
+(def n-people 100000)
+
 (def people
-  ["Mike"
+  (map str (range 100000))
+  #_["Mike"
    "Dorrene"
    "Benti"
    "Kristen"
@@ -98,7 +101,7 @@
    [:read-rows :capitalize]
    [:capitalize :persist]])
 
-(def out-chan (chan 1000))
+(def out-chan (chan (* 2 n-people)))
 
 (def catalog
   [{:onyx/name :partition-keys
@@ -170,7 +173,13 @@
 (def results (take-segments! out-chan))
 
 (fact results
-      => [{:id 1 :name "MIKE"}
+      => 
+      (map (fn [v]
+             {:id v :name (str v)})
+           n-people
+           )
+      
+      #_[{:id 1 :name "MIKE"}
           {:id 2 :name "DORRENE"}
           {:id 3 :name "BENTI"}
           {:id 4 :name "KRISTEN"}
