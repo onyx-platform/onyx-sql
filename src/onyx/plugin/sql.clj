@@ -104,6 +104,7 @@
         (swap! pending-messages assoc (:id m) m))
       (when (and (= 1 (count @pending-messages))
                  (= (count batch) 1)
+                 (zero? (count (.buf read-ch)))
                  (= (:message (first batch)) :done))
         (reset! drained? true))
       {:onyx.core/batch batch}))
