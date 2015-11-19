@@ -83,7 +83,7 @@
           [:id :int "PRIMARY KEY AUTO_INCREMENT"]
           [:name "VARCHAR(32)"])))
 
-(def n-people 100000)
+(def n-people 10000)
 
 (def people
   (map str (range 100000))
