@@ -1,4 +1,4 @@
-(defproject org.onyxplatform/onyx-sql "0.8.1.0-SNAPSHOT"
+(defproject org.onyxplatform/onyx-sql "0.8.0.0-alpha5"
   :description "Onyx plugin for JDBC-backed SQL databases"
   :url "https://github.com/MichaelDrogalis/onyx-sql"
   :license {:name "Eclipse Public License"
@@ -14,7 +14,7 @@
   :dependencies [[org.clojure/clojure "1.7.0"]
                  [org.clojure/java.jdbc "0.3.3"]
                  ^{:voom {:repo "git@github.com:onyx-platform/onyx.git" :branch "master"}}
-                 [org.onyxplatform/onyx "0.8.1-alpha4"]
+                 [org.onyxplatform/onyx "0.8.0-alpha5"]
                  [java-jdbc/dsl "0.1.3"]
                  [com.mchange/c3p0 "0.9.2.1"]
                  [honeysql "0.5.1"]]
