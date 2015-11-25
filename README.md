@@ -7,7 +7,7 @@ Onyx plugin providing read and write facilities for SQL databases with JDBC supp
 In your project file:
 
 ```clojure
-[org.onyxplatform/onyx-sql "0.8.1.0-alpha7"]
+[org.onyxplatform/onyx-sql "0.8.1.0-alpha8"]
 ```
 
 In your peer boot-up namespace:
