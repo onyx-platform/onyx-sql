@@ -36,8 +36,10 @@
 (def db-name (or (env :test-db-name) "onyx_input_test"))
 
 (def db-sub-base 
+  ;"//172.16.112.128:3306"
   "//127.0.0.1:3306")
 
+;(def db-pass "somepass")
 (def db-pass "")
 
 (def db-spec
@@ -83,14 +85,10 @@
           [:id :int "PRIMARY KEY AUTO_INCREMENT"]
           [:name "VARCHAR(32)"])))
 
-(def people
-  ["Mike"
-   "Dorrene"
-   "Benti"
-   "Kristen"
-   "Derek"])
+(def values
+  (mapv str (range 5000)))
 
-(doseq [person people]
+(doseq [person values]
   (jdbc/insert! conn-pool :people {:name person}))
 
 (def workflow
@@ -98,7 +96,7 @@
    [:read-rows :capitalize]
    [:capitalize :persist]])
 
-(def out-chan (chan 1000))
+(def out-chan (chan (inc (count values))))
 
 (def catalog
   [{:onyx/name :partition-keys
@@ -113,7 +111,8 @@
     :sql/table :people
     :sql/id :id
     :sql/rows-per-segment 2
-    :onyx/batch-size 1000
+    :onyx/max-pending 10000
+    :onyx/batch-size 10
     :onyx/max-peers 1
     :onyx/doc "Partitions a range of primary keys into subranges"}
 
@@ -133,14 +132,14 @@
    {:onyx/name :capitalize
     :onyx/fn :onyx.plugin.input-test/capitalize
     :onyx/type :function
-    :onyx/batch-size 1000
+    :onyx/batch-size 10
     :onyx/doc "Capitilizes the :name key"}
 
    {:onyx/name :persist
     :onyx/plugin :onyx.plugin.core-async/output
     :onyx/type :output
     :onyx/medium :core.async
-    :onyx/batch-size 1000
+    :onyx/batch-size 10
     :onyx/max-peers 1
     :onyx/doc "Writes segments to a core.async channel"}])
 
@@ -169,13 +168,9 @@
 
 (def results (take-segments! out-chan))
 
-(fact results
-      => [{:id 1 :name "MIKE"}
-          {:id 2 :name "DORRENE"}
-          {:id 3 :name "BENTI"}
-          {:id 4 :name "KRISTEN"}
-          {:id 5 :name "DEREK"}
-          :done])
+(fact (sort (map :name (butlast results)))
+      => 
+      (sort values))
 
 (doseq [v-peer v-peers]
   (onyx.api/shutdown-peer v-peer))

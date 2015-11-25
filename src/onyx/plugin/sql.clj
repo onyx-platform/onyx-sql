@@ -1,6 +1,6 @@
 (ns onyx.plugin.sql
   (:require [clojure.java.jdbc :as jdbc]
-            [clojure.core.async :refer [chan >! >!! <!! close! go timeout alts!!]]
+            [clojure.core.async :refer [chan >! >!! <!! close! go timeout alts!! go-loop]]
             [taoensso.timbre :refer [fatal]]
             [onyx.peer.pipeline-extensions :as p-ext]
             [onyx.types :as t]
@@ -8,6 +8,7 @@
             [onyx.static.uuid :refer [random-uuid]]
             [onyx.peer.function :as function]
             [onyx.extensions :as extensions]
+            [taoensso.timbre :refer [info error debug fatal]]
             [honeysql.core :as sql]
             [java-jdbc.sql :as sql-dsl])
   (:import [com.mchange.v2.c3p0 ComboPooledDataSource]))
@@ -45,24 +46,44 @@
             :id (:sql/id task-map)})
          ranges)))
 
+(defn update-partition [content acked]
+  (dissoc content acked))
+
+(defn start-commit-loop! [log task-id content checkpoint-ch checkpoint-loop-ms]
+  (go-loop [updated-content content]
+           (let [timeout-ch (timeout checkpoint-loop-ms)
+                 [acked ch] (alts!! [timeout-ch checkpoint-ch] :priority true)] 
+             (cond (= ch timeout-ch)
+                   (do 
+                     (extensions/force-write-chunk log :chunk updated-content task-id)
+                     (recur updated-content))
+                   (and (= ch checkpoint-ch)
+                        (not (nil? acked)))
+                   (recur (update-partition updated-content acked))))))
+
 (defn inject-partition-keys
   [{:keys [onyx.core/pipeline onyx.core/task-map onyx.core/log onyx.core/task-id] :as event} 
    lifecycle]
   (let [ch (:read-ch pipeline)
+        checkpoint-ch (:checkpoint-ch pipeline)
+        checkpoint-ms (:checkpoint-ms pipeline)
         pending-messages (:pending-messages pipeline)
-        pool (task->pool task-map)]
+        pool (task->pool task-map)
+        partitions (partition-table (assoc event :sql/pool pool))
+        content (:content pipeline)
+        chunk (into {} 
+                    (map (fn [p] [p :incomplete]) 
+                         partitions))
+        ;; Attempt to write. It will fail if it's already been written. Read it back
+        ;; in either case.
+        _ (extensions/write-chunk log :chunk chunk task-id)
+        content (extensions/read-chunk log :chunk task-id)
+        commit-go-loop (start-commit-loop! log task-id content checkpoint-ch checkpoint-ms)]
     (go
      (try
-       (let [partitions (partition-table (assoc event :sql/pool pool))
-             chunk (map (fn [p] {:partition p :status :incomplete}) partitions)
-             ;; Attempt to write. It will fail if it's already been written. Read it back
-             ;; in either case.
-             _ (extensions/write-chunk log :chunk chunk task-id)
-             content (extensions/read-chunk log :chunk task-id)]
-         ;; Remove messages that are already acknowledged.
-         (doseq [part (remove #(= (:status %) :acked) content)]
-           (>! ch {:content part}))
-         (>! ch :done))
+         (doseq [part (keys content)]
+           (>! ch part))
+         (>! ch :done)
        (catch Exception e
          (fatal e))))
     {:sql/pool pool
@@ -71,19 +92,12 @@
 
 (defn close-partition-keys
   [{:keys [sql/pool] :as event} lifecycle]
+  (close! (:checkpoint-ch (:onyx.core/pipeline event)))
   (.close (:datasource pool))
   {})
 
-(defn update-partition [content new-content part]
-  (map
-   (fn [c]
-     (if (= (:partition c) part)
-       new-content
-       c))
-   content))
-
 (defrecord SqlPartitionKeys [max-pending batch-size batch-timeout log task-id 
-                             pending-messages drained? read-ch]
+                             pending-messages drained? read-ch checkpoint-ch checkpoint-ms]
   p-ext/Pipeline
   (write-batch 
     [this event]
@@ -98,8 +112,7 @@
                             (let [result (first (alts!! [read-ch timeout-ch] :priority true))]
                               (if (= result :done)
                                 (t/input (random-uuid) :done)
-                                (t/input (random-uuid) 
-                                         (:partition (:content result)))))))
+                                (t/input (random-uuid) result)))))
                      (filter :message))]
       (doseq [m batch]
         (swap! pending-messages assoc (:id m) m))
@@ -113,11 +126,8 @@
   p-ext/PipelineInput
 
   (ack-segment [_ _ segment-id]
-    (let [part (get @pending-messages segment-id)
-          content {:status :acked :partition (:message part)}
-          read-content (extensions/read-chunk log :chunk task-id)
-          updated-content (update-partition read-content content (:message part))]
-      (extensions/force-write-chunk log :chunk updated-content task-id)
+    (let [part (get @pending-messages segment-id)]
+      (>!! checkpoint-ch (:message part))
       (swap! pending-messages dissoc segment-id)))
 
   (retry-segment 
@@ -126,7 +136,7 @@
           message (get snapshot segment-id)]
       (swap! pending-messages dissoc segment-id)
       (if (:partition message)
-        (>!! read-ch {:partition (:partition message)})
+        (>!! read-ch message)
         (>!! read-ch :done))))
 
   (pending?
@@ -142,13 +152,15 @@
         max-pending (arg-or-default :onyx/max-pending catalog-entry)
         batch-size (:onyx/batch-size catalog-entry)
         batch-timeout (arg-or-default :onyx/batch-timeout catalog-entry)
-        ch (chan (or (:sql/read-buffer catalog-entry) 1000))
+        read-ch (chan (or (:sql/read-buffer catalog-entry) 1000))
+        checkpoint-ch (chan (or (:sql/checkpoint-buffer catalog-entry) 1000))
+        checkpoint-ms (or (:sql/checkpoint-ms catalog-entry) 500)
         pending-messages (atom {})
         drained? (atom false)
         log (:onyx.core/log pipeline-data)
         task-id (:onyx.core/task-id pipeline-data)]
     (->SqlPartitionKeys max-pending batch-size batch-timeout log task-id
-                        pending-messages drained? ch)))
+                        pending-messages drained? read-ch checkpoint-ch checkpoint-ms)))
 
 (defn inject-read-rows
   [{:keys [onyx.core/task-map] :as event} lifecycle]

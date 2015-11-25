@@ -36,7 +36,10 @@ Catalog entry:
  :sql/password "db-pass"
  :sql/table :table-name
  :sql/id :column-to-split-by
- :sql/rows-per-segment 1000
+ ;; 500 * 1000 = 50,000 rows 
+ ;; to be processed within :onyx/pending-timeout, 60s by default
+ :sql/rows-per-segment 500
+ :onyx/max-pending 1000
  :onyx/batch-size batch-size
  :onyx/max-peers 1
  :onyx/doc "Partitions a range of primary keys into subranges"}
