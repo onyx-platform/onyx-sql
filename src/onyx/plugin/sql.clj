@@ -5,6 +5,7 @@
             [onyx.peer.pipeline-extensions :as p-ext]
             [onyx.types :as t]
             [onyx.static.default-vals :refer [arg-or-default]]
+            [onyx.static.uuid :refer [random-uuid]]
             [onyx.peer.function :as function]
             [onyx.extensions :as extensions]
             [honeysql.core :as sql]
@@ -96,8 +97,8 @@
                      (map (fn [_]
                             (let [result (first (alts!! [read-ch timeout-ch] :priority true))]
                               (if (= result :done)
-                                (t/input (java.util.UUID/randomUUID) :done)
-                                (t/input (java.util.UUID/randomUUID) 
+                                (t/input (random-uuid) :done)
+                                (t/input (random-uuid) 
                                          (:partition (:content result)))))))
                      (filter :message))]
       (doseq [m batch]
