@@ -48,7 +48,7 @@ Catalog entry:
  :sql/password "db-pass"
  :sql/table :table-name
  :sql/id :column-to-split-by
- ;; 500 * 1000 = 50,000 rows 
+ ;; 500 * 1000 = 50,000 rows
  ;; to be processed within :onyx/pending-timeout, 60s by default
  :sql/rows-per-segment 500
  :onyx/max-pending 1000
@@ -95,7 +95,14 @@ Lifecycle entry:
 
 ##### write-rows
 
-Writes segments to a SQL database.
+Writes segments to a SQL database. Expects segments with the same schema as the
+table they are being inserted into. They must be batched together into a
+single segment.
+
+
+``` clojure
+{:rows [{:id 1 :column1 "hello" :column2 "world}]}
+```
 
 Catalog entry:
 
