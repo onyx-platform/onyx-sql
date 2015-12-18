@@ -1,6 +1,6 @@
 (defproject org.onyxplatform/onyx-sql "0.8.3.1-SNAPSHOT"
   :description "Onyx plugin for JDBC-backed SQL databases"
-  :url "https://github.com/MichaelDrogalis/onyx-sql"
+  :url "https://github.com/onyx-platform/onyx-sql"
   :license {:name "Eclipse Public License"
             :url "http://www.eclipse.org/legal/epl-v10.html"}
   :repositories {"snapshots" {:url "https://clojars.org/repo"
