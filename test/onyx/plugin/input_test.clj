@@ -110,6 +110,7 @@
     :sql/password db-pass
     :sql/table :people
     :sql/id :id
+    :sql/columns [:name]
     :sql/rows-per-segment 2
     :onyx/max-pending 10000
     :onyx/batch-size 10
