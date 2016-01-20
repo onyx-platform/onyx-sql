@@ -48,7 +48,7 @@ Catalog entry:
  :sql/password "db-pass"
  :sql/table :table-name
  :sql/id :column-to-split-by
- :sql/columns [:id :name]
+ :sql/columns [:*]
  ;; 500 * 1000 = 50,000 rows
  ;; to be processed within :onyx/pending-timeout, 60s by default
  :sql/rows-per-segment 500
@@ -64,6 +64,8 @@ Lifecycle entry:
 {:lifecycle/task :partition-keys
  :lifecycle/calls :onyx.plugin.sql/partition-keys-calls}
 ```
+
+`:sql/columns` supports restricting the select to only certain columns, e.g. `:sql/columns [:id :name]`.
 
 ##### read-rows
 
