@@ -1,7 +1,6 @@
 (ns onyx.plugin.sql
   (:require [clojure.java.jdbc :as jdbc]
             [clojure.core.async :refer [chan >! >!! <!! close! go timeout alts!! go-loop]]
-            [taoensso.timbre :refer [fatal]]
             [onyx.peer.pipeline-extensions :as p-ext]
             [onyx.types :as t]
             [onyx.static.default-vals :refer [arg-or-default]]
@@ -38,12 +37,14 @@
                   (:min (first (jdbc/query pool (vector (format "select min(%s) as min from %s" id-col table))))))
         n-max (or (:sql/upper-bound task-map)
                   (:max (first (jdbc/query pool (vector (format "select max(%s) as max from %s" id-col table))))))
-        ranges (partition-all 2 1 (range n-min n-max (:sql/rows-per-segment task-map)))]
+        ranges (partition-all 2 1 (range n-min n-max (:sql/rows-per-segment task-map)))
+        columns (or (:sql/columns task-map) [:*])]
     (map (fn [[l h]]
            {:low l
             :high (dec (or h (inc n-max)))
             :table (:sql/table task-map)
-            :id (:sql/id task-map)})
+            :id (:sql/id task-map)
+            :columns columns})
          ranges)))
 
 (defn update-partition [content acked]
@@ -173,8 +174,8 @@
   (.close (:datasource pool))
   {})
 
-(defn read-rows [pool {:keys [table id low high] :as segment}]
-  (let [sql-map {:select [:*]
+(defn read-rows [pool {:keys [table id low high columns] :as segment}]
+  (let [sql-map {:select columns
                  :from [table]
                  :where [:and
                          [:>= id low]
