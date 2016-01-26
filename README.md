@@ -48,6 +48,7 @@ Catalog entry:
  :sql/password "db-pass"
  :sql/table :table-name
  :sql/id :column-to-split-by
+ :sql/columns [:*]
  ;; 500 * 1000 = 50,000 rows
  ;; to be processed within :onyx/pending-timeout, 60s by default
  :sql/rows-per-segment 500
@@ -63,6 +64,8 @@ Lifecycle entry:
 {:lifecycle/task :partition-keys
  :lifecycle/calls :onyx.plugin.sql/partition-keys-calls}
 ```
+
+`:sql/columns` supports restricting the select to only certain columns, e.g. `:sql/columns [:id :name]`.
 
 ##### read-rows
 
@@ -159,6 +162,7 @@ Lifecycle entry:
 |`:sql/user`             | `string`  | The user to authenticate with
 |`:sql/password`         | `string`  | The password to authenticate with
 |`:sql/table`            | `keyword` | The table to read/write from/to
+|`:sql/columns`          | `vector`  | Columns to select
 |`:sql/id`               | `keyword` | The name of a unique, monotonically increasing integer column
 |`:sql/rows-per-segment` | `integer` | The number of rows to compress into a single segment
 |`:sql/read-buffer`      | `integer` | The number of messages to buffer via core.async, default is `1000`
