@@ -100,9 +100,6 @@
 
 (def out-chan (chan 1000))
 
-(defn restartable? [e] 
-  true)
-
 (def catalog
   [{:onyx/name :partition-keys
     :onyx/plugin :onyx.plugin.sql/partition-keys
@@ -116,7 +113,6 @@
     :sql/table :people
     :sql/id :id
     :sql/rows-per-segment 2
-    :onyx/restart-pred-fn :onyx.plugin.input-resume-test/restartable?
     :onyx/batch-size 1
     :onyx/max-peers 1
     :onyx/doc "Partitions a range of primary keys into subranges"}
@@ -164,7 +160,8 @@
      (Thread/sleep 7000)
      (when (= (swap! batch-num inc) 2)
        (throw (ex-info "Restartable" {:restartable? true})))
-     {})})
+     {})
+   :lifecycle/handle-exception (constantly true)})
 
 (def lifecycles
   [{:lifecycle/task :partition-keys
