@@ -7,6 +7,7 @@
             [onyx.static.uuid :refer [random-uuid]]
             [onyx.peer.function :as function]
             [onyx.extensions :as extensions]
+            [onyx.plugin.util :as util]
             [taoensso.timbre :refer [info error debug fatal]]
             [honeysql.core :as sql]
             [java-jdbc.sql :as sql-dsl])
@@ -29,6 +30,29 @@
                  :user (:sql/user task-map)
                  :password (:sql/password task-map)}]
     (create-pool db-spec)))
+
+
+(defn partition-table-by-uuid [{:keys [onyx.core/task-map sql/pool] :as event}]
+  (let [table (name (:sql/table task-map))
+        id-col (name (:sql/id task-map))
+        n-min (or (:sql/lower-bound task-map)
+                  (:min (first (jdbc/query pool (vector (format "select min(%s) as min from %s" id-col table))))))
+        n-min (util/bytes-to-bigint n-min)
+        n-max (or (:sql/upper-bound task-map)
+                  (:max (first (jdbc/query pool (vector (format "select max(%s) as max from %s" id-col table))))))
+        n-max (util/bytes-to-bigint n-max)
+        count (:count (first (jdbc/query pool (vector (format "select count(*) as count from %s" table)))))
+        steps-num (/ count (:sql/rows-per-segment task-map))
+        step (bigint (/ (- n-max n-min) steps-num))
+        ranges (partition-all 2 1 (range n-min n-max step))
+        columns (or (:sql/columns task-map) [:*])]
+    (map (fn [[l h]]
+           {:low (util/bigint-to-bytes l)
+            :high (util/bigint-to-bytes (dec (or h (inc n-max))))
+            :table (:sql/table task-map)
+            :id (:sql/id task-map)
+            :columns columns})
+         ranges)))
 
 (defn partition-table [{:keys [onyx.core/task-map sql/pool] :as event}]
   (let [table (name (:sql/table task-map))
@@ -63,14 +87,14 @@
                    (recur (update-partition updated-content acked))))))
 
 (defn inject-partition-keys
-  [{:keys [onyx.core/pipeline onyx.core/task-map onyx.core/log onyx.core/task-id] :as event} 
+  [table-partitioner {:keys [onyx.core/pipeline onyx.core/task-map onyx.core/log onyx.core/task-id] :as event} 
    lifecycle]
   (let [ch (:read-ch pipeline)
         checkpoint-ch (:checkpoint-ch pipeline)
         checkpoint-ms (:checkpoint-ms pipeline)
         pending-messages (:pending-messages pipeline)
         pool (task->pool task-map)
-        partitions (partition-table (assoc event :sql/pool pool))
+        partitions (table-partitioner (assoc event :sql/pool pool))
         content (:content pipeline)
         chunk (into {} 
                     (map (fn [p] [p :incomplete]) 
@@ -122,7 +146,8 @@
                  (zero? (count (.buf read-ch)))
                  (= (:message (first batch)) :done))
         (reset! drained? true))
-      {:onyx.core/batch batch}))
+      {:onyx.core/batch batch})
+    )
 
   p-ext/PipelineInput
 
@@ -251,7 +276,11 @@
     (->SqlUpsertRows pool table)))
 
 (def partition-keys-calls
-  {:lifecycle/before-task-start inject-partition-keys
+  {:lifecycle/before-task-start (partial inject-partition-keys partition-table)
+   :lifecycle/after-task-stop close-partition-keys})
+
+(def partition-uuid-calls
+  {:lifecycle/before-task-start (partial inject-partition-keys partition-table-by-uuid)
    :lifecycle/after-task-stop close-partition-keys})
 
 (def read-rows-calls
