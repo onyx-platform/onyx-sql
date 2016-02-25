@@ -20,7 +20,7 @@ In your peer boot-up namespace:
 
 A few notes are warranted on the read functionality of this plugin. Efficient distributed reads are facilitated using the assumption of the presence of a monotonically increasing integer key column on the replicated table. This allows the plugin to evenly break up a database table into chunks which can be read by multiple peers.
 
-Because of this design, two functions are required to read from a database table. The first, `partition-keys`, takes care of breaking up the database table into discrete chunks. The second, `read-rows`, takes the output of `partition-keys` and performs the actual reading of rows based on these partitions.
+Because of this design, two functions are required to read from a database table. The first, `partition-keys` or `partition-keys-by-uuid` take care of breaking up the database table into discrete chunks. `partition-keys` is used to partition a table with an integer key, while `partition-keys-by-uuid` is used to partition a table with an UUID key. The second, `read-rows`, takes the output of `partition-keys` or `partition-keys-by-uuid` and performs the actual reading of rows based on these partitions. Note, `partition-keys-by-uuid` is only supported on MySQL.
 
 If there's any possibility of data being modified in the table being read from while the job runs, it's recommended that you obtain a lock on the table to ensure data consistency. This is best accomplished by adding lifecycle functions to the `read-rows` step which lock and unlock the table before and after the job's start and completion (respectively).
 
