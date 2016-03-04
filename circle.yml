@@ -24,3 +24,7 @@ deployment:
     branch: master
     commands:
       - lein deploy
+
+general:
+  artifacts:
+    - onyx.log
