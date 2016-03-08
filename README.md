@@ -75,7 +75,7 @@ Catalog entry:
 
 ```clojure
 {:onyx/name :read-rows
- :onyx/ident :sql/read-rows
+ :onyx/tenancy-ident :sql/read-rows
  :onyx/fn :onyx.plugin.sql/read-rows
  :onyx/type :function
  :onyx/batch-size batch-size
