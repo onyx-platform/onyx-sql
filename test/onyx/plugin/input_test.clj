@@ -7,6 +7,8 @@
             [onyx api
              [job :refer [add-task]]
              [test-helper :refer [with-test-env]]]
+            [onyx.tasks
+             [sql :as sql]]
             [onyx.plugin
              [sql]
              [core-async :refer [take-segments!]]
@@ -15,54 +17,35 @@
 
 (defn build-job [db-user db-pass db-sub-base db-name batch-size batch-timeout]
   (let [batch-settings {:onyx/batch-size batch-size :onyx/batch-timeout batch-timeout}
+        sql-settings {:sql/classname "com.mysql.jdbc.Driver"
+                      :sql/subprotocol "mysql"
+                      :sql/subname (str db-sub-base "/" db-name)
+                      :sql/user db-user
+                      :sql/password db-pass
+                      :sql/table :people}
         base-job {:workflow [[:partition-keys :read-rows]
                              [:read-rows :capitalize]
                              [:capitalize :persist]]
-                  :catalog [{:onyx/name :partition-keys
-                             :onyx/plugin :onyx.plugin.sql/partition-keys
-                             :onyx/type :input
-                             :onyx/medium :sql
-                             :sql/classname "com.mysql.jdbc.Driver"
-                             :sql/subprotocol "mysql"
-                             :sql/subname (str db-sub-base "/" db-name)
-                             :sql/user db-user
-                             :sql/password db-pass
-                             :sql/table :people
-                             :sql/id :id
-                             :sql/columns [:name]
-                             :sql/rows-per-segment 2
-                             :onyx/max-pending 10000
-                             :onyx/batch-size 10
-                             :onyx/max-peers 1
-                             :onyx/doc "Partitions a range of primary keys into subranges"}
-
-                            {:onyx/name :read-rows
-                             :onyx/fn :onyx.plugin.sql/read-rows
-                             :onyx/type :function
-                             :onyx/batch-size 1
-                             :sql/classname "com.mysql.jdbc.Driver"
-                             :sql/subprotocol "mysql"
-                             :sql/subname (str db-sub-base "/" db-name)
-                             :sql/user db-user
-                             :sql/password db-pass
-                             :sql/table :people
-                             :sql/id :id
-                             :onyx/doc "Reads rows of a SQL table bounded by a key range"}
-
-                            {:onyx/name :capitalize
+                  :catalog [{:onyx/name :capitalize
                              :onyx/fn :onyx.plugin.input-test/capitalize
                              :onyx/type :function
                              :onyx/batch-size 10
                              :onyx/doc "Capitilizes the :name key"}]
-                  :lifecycles [{:lifecycle/task :partition-keys
-                                :lifecycle/calls :onyx.plugin.sql/partition-keys-calls}
-                               {:lifecycle/task :read-rows
-                                :lifecycle/calls :onyx.plugin.sql/read-rows-calls}]
+                  :lifecycles []
                   :windows []
                   :triggers []
                   :flow-conditions []
                   :task-scheduler :onyx.task-scheduler/balanced}]
     (-> base-job
+        (add-task (sql/partition-keys :partition-keys (merge {:sql/id :id
+                                                              :sql/columns [:name]
+                                                              :sql/rows-per-segment 2
+                                                              :onyx/max-pending 10000}
+                                                             sql-settings
+                                                             batch-settings)))
+        (add-task (sql/read-rows :read-rows (merge {:sql/id :id}
+                                                   sql-settings
+                                                   batch-settings)))
         (add-task (ca/output-task :persist batch-settings)))))
 
 (defn capitalize [segment]
@@ -107,13 +90,10 @@
     (doseq [person values]
       (jdbc/insert! cpool :people {:name person}))))
 
-#_(def results (take-segments! out-chan))
-
-
-
 (deftest sql-input-test
-  (let [{:keys [env-config peer-config sql-config]} (read-config (io/resource "config.edn")
-                                                                 {:profile :test})
+  (let [{:keys [env-config peer-config sql-config]} (read-config
+                                                     (io/resource "config.edn")
+                                                     {:profile :test})
         {:keys [sql/username sql/password sql/subname sql/db-name]} sql-config
         job (build-job username password subname db-name 10 1000)
         {:keys [persist]} (ca/get-core-async-channels job)]
