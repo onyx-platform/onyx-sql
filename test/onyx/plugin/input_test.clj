@@ -31,7 +31,8 @@
                              :onyx/type :function
                              :onyx/batch-size 10
                              :onyx/doc "Capitilizes the :name key"}]
-                  :lifecycles []
+                  :lifecycles [{:lifecycle/task :partition-keys
+                                :lifecycle/calls ::read-crash}]
                   :windows []
                   :triggers []
                   :flow-conditions []
@@ -47,6 +48,16 @@
                                                    sql-settings
                                                    batch-settings)))
         (add-task (ca/output :persist batch-settings)))))
+
+(def batch-num (atom 0))
+(def read-crash
+  {:lifecycle/before-batch
+   (fn [event lifecycle]
+     (Thread/sleep 7000)
+     (when (= (swap! batch-num inc) 2)
+       (throw (ex-info "Restartable" {:restartable? true})))
+     {})
+   :lifecycle/handle-exception (constantly :restart)})
 
 (defn capitalize [segment]
   (update-in segment [:name] clojure.string/upper-case))
@@ -80,7 +91,7 @@
                  :user db-user
                  :password db-pass}
         cpool (pool db-spec)
-        values (mapv str (range 5000))]
+        values (mapv str (range 50))]
     (jdbc/execute!
      cpool
      (vector (jdbc/create-table-ddl
@@ -102,4 +113,4 @@
       (onyx.test-helper/validate-enough-peers! test-env job)
       (onyx.api/submit-job peer-config job)
       (is (= (sort (map :name (butlast (take-segments! persist))))
-             (sort (mapv str (range 5000))))))))
+             (sort (mapv str (range 50))))))))
