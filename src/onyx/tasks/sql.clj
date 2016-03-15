@@ -93,3 +93,37 @@
                                 :sql/table table
                                 :sql/id id}
                                task-opts))))
+
+(def SqlWriteRowsTaskMap
+  (s/->Both [os/TaskMap
+             (merge
+              {UserTaskMapKey s/Any}
+              SqlConnectionSettings)]))
+
+(s/defn ^:always-validate write-rows
+  ([task-name :- s/Keyword opts]
+   {:task {:task-map (merge {:onyx/name task-name
+                             :onyx/plugin :onyx.plugin.sql/write-rows
+                             :onyx/type :output
+                             :onyx/medium :sql
+                             :onyx/doc "Writes segments from the :rows keys to the SQL database"}
+                            opts)
+           :lifecycles [{:lifecycle/task task-name
+                         :lifecycle/calls :onyx.plugin.sql/write-rows-calls}]}
+    :schema {:task-map SqlWriteRowsTaskMap
+             :lifecycles [os/Lifecycle]}})
+  ([task-name :- s/Keyword
+    classname :- s/Str
+    subprotocol :- s/Str
+    subname :- s/Str
+    user :- s/Str
+    password :- s/Str
+    table :- s/Keyword
+    task-opts :- {s/Any s/Any}]
+   (write-rows task-name (merge {:sql/classname classname
+                                 :sql/subprotocol subprotocol
+                                 :sql/subname subname
+                                 :sql/user user
+                                 :sql/password password
+                                 :sql/table table}
+                                task-opts))))

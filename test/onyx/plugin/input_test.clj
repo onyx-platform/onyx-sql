@@ -8,11 +8,11 @@
              [job :refer [add-task]]
              [test-helper :refer [with-test-env]]]
             [onyx.tasks
-             [sql :as sql]]
+             [sql :as sql]
+             [core-async :as ca]]
             [onyx.plugin
              [sql]
-             [core-async :refer [take-segments!]]
-             [core-async-tasks :as ca]])
+             [core-async :refer [take-segments! get-core-async-channels]]])
   (:import com.mchange.v2.c3p0.ComboPooledDataSource))
 
 (defn build-job [db-user db-pass db-sub-base db-name batch-size batch-timeout]
@@ -46,7 +46,7 @@
         (add-task (sql/read-rows :read-rows (merge {:sql/id :id}
                                                    sql-settings
                                                    batch-settings)))
-        (add-task (ca/output-task :persist batch-settings)))))
+        (add-task (ca/output :persist batch-settings)))))
 
 (defn capitalize [segment]
   (update-in segment [:name] clojure.string/upper-case))
@@ -96,7 +96,7 @@
                                                      {:profile :test})
         {:keys [sql/username sql/password sql/subname sql/db-name]} sql-config
         job (build-job username password subname db-name 10 1000)
-        {:keys [persist]} (ca/get-core-async-channels job)]
+        {:keys [persist]} (get-core-async-channels job)]
     (with-test-env [test-env [4 env-config peer-config]]
       (ensure-database! username password subname db-name)
       (onyx.test-helper/validate-enough-peers! test-env job)
