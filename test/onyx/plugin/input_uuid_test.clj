@@ -40,7 +40,7 @@
 
 (def db-name (or (env :test-db-name) "onyx_input_uuid_test"))
 
-(def db-sub-base 
+(def db-sub-base
   "//127.0.0.1:3306")
 
 (def db-pass "")
@@ -164,7 +164,7 @@
 (def results (take-segments! out-chan))
 
 (fact (sort (map :name (butlast results)))
-      => 
+      =>
       (sort values))
 
 (doseq [v-peer v-peers]

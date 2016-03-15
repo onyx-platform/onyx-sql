@@ -1,0 +1,34 @@
+{:env-config
+ {:onyx/tenancy-id #env [ONYX_ID "testcluster"]
+  :onyx.bookkeeper/server? true
+  :onyx.bookkeeper/local-quorum? #cond {:default false
+                                        :test true}
+  :onyx.bookkeeper/delete-server-data? true
+  :onyx.bookkeeper/local-quorum-ports [3196 3197 3198]
+  :onyx.bookkeeper/port 3196
+  :zookeeper/address #cond {:default #env [ZOOKEEPER "zookeeper"]
+                            :test "127.0.0.1:2188"}
+  :zookeeper/server? #cond {:default false
+                            :test true}
+  :zookeeper.server/port 2188}
+ :peer-config
+ {:onyx/tenancy-id                       #env [ONYX_ID "testcluster"]
+  :zookeeper/address                     #cond {:default #env [ZOOKEEPER "zookeeper"]
+                                                :test "127.0.0.1:2188"}
+  :onyx.peer/job-scheduler               :onyx.job-scheduler/greedy
+  :onyx.peer/zookeeper-timeout           60000
+  :onyx.messaging/allow-short-circuit?   #cond {:default true
+                                                :test false}
+  :onyx.messaging/impl                   :aeron
+  :onyx.messaging/bind-addr              #env [BIND_ADDR "localhost"]
+  :onyx.messaging/peer-port              40200
+  :onyx.messaging.aeron/embedded-driver? #cond {:default false
+                                                :test true}}
+ :sql-config
+ {:sql/db-name #env [TEST_DB_NAME "onyx_input_test"] ;;maybe use this?
+  :sql/username #env [TEST_DB_USER "root"]
+  :sql/password ""
+  :sql/subname #cond {;:default "mysql"
+                      :test "//192.168.99.100:3306"}  ;;change me
+  :sql/classname "com.mysql.jdbc.Driver"
+  :sql/subprotocol "mysql"}}

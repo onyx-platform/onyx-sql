@@ -17,6 +17,7 @@
                  [org.onyxplatform/onyx "0.9.0-alpha9"]
                  [java-jdbc/dsl "0.1.3"]
                  [com.mchange/c3p0 "0.9.2.1"]
+                 [aero "0.2.0"]
                  [honeysql "0.5.1"]]
   :profiles {:dev {:dependencies [[midje "1.7.0"]
                                   [environ "1.0.0"]
