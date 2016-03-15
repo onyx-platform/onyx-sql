@@ -1,52 +1,50 @@
 (ns onyx.plugin.output-test
-  (:require [clojure.java.jdbc :as jdbc]
-            [clojure.core.async :refer [chan >!! <!! close!]]
-            [onyx.plugin.core-async]
-            [onyx.plugin.sql]
-            [onyx.api]
-            [environ.core :refer [env]]
-            [honeysql.core :as sql]
-            [midje.sweet :refer :all])
+  (:require [aero.core :refer [read-config]]
+            [honeysql.core :as honey]
+            [clojure.java
+             [io :as io]
+             [jdbc :as jdbc]]
+            [clojure.test :refer [deftest is]]
+            [clojure.core.async :refer [pipe]]
+            [clojure.core.async.lab :refer [spool]]
+            [onyx api
+             [job :refer [add-task]]
+             [test-helper :refer [with-test-env]]]
+            [onyx.tasks
+             [sql :as sql]
+             [core-async :as ca]]
+            [onyx.plugin
+             [sql]
+             [core-async :refer [take-segments! get-core-async-channels]]])
   (:import [com.mchange.v2.c3p0 ComboPooledDataSource]))
 
-(def id (java.util.UUID/randomUUID))
-
-(def env-config
-  {:zookeeper/address "127.0.0.1:2188"
-   :zookeeper/server? true
-   :zookeeper.server/port 2188
-   :onyx/tenancy-id id})
-
-(def peer-config
-  {:zookeeper/address "127.0.0.1:2188"
-   :onyx.peer/job-scheduler :onyx.job-scheduler/greedy
-   :onyx.messaging/impl :aeron
-   :onyx.messaging/peer-port 40200
-   :onyx.messaging/bind-addr "localhost"
-   :onyx/tenancy-id id})
-
-(def dev-env (onyx.api/start-env env-config))
-
-(def peer-group (onyx.api/start-peer-group peer-config))
+(defn build-job [db-user db-pass db-sub-base db-name batch-size batch-timeout]
+  (let [batch-settings {:onyx/batch-size batch-size :onyx/batch-timeout batch-timeout}
+        sql-settings {:sql/classname "com.mysql.jdbc.Driver"
+                      :sql/subprotocol "mysql"
+                      :sql/subname (str db-sub-base "/" db-name)
+                      :sql/user db-user
+                      :sql/password db-pass
+                      :sql/table :words}
+        base-job {:workflow [[:in :transform]
+                             [:transform :out]]
+                  :catalog [{:onyx/name :transform
+                             :onyx/fn :onyx.plugin.output-test/transform
+                             :onyx/type :function
+                             :onyx/batch-size batch-size
+                             :onyx/doc "Transforms a segment to prepare for SQL persistence"}]
+                  :lifecycles [{:lifecycle/task :out
+                                :lifecycle/calls :onyx.plugin.sql/write-rows-calls}]
+                  :windows []
+                  :triggers []
+                  :flow-conditions []
+                  :task-scheduler :onyx.task-scheduler/balanced}]
+    (-> base-job
+        (add-task (ca/input :in batch-settings))
+        (add-task (sql/write-rows :out (merge sql-settings batch-settings))))))
 
 (defn transform [{:keys [word] :as segment}]
   {:rows [{:word word}]})
-
-(def db-user (or (env :test-db-user) "root"))
-
-(def db-name (or (env :test-db-name) "onyx_output_test"))
-
-(def db-sub-base 
-  "//127.0.0.1:3306")
-
-(def db-pass "")
-
-(def db-spec
-  {:classname "com.mysql.jdbc.Driver"
-   :subprotocol "mysql"
-   :subname db-sub-base
-   :user db-user
-   :password db-pass})
 
 (defn pool [spec]
   {:datasource
@@ -58,113 +56,59 @@
      (.setMaxIdleTimeExcessConnections (* 30 60))
      (.setMaxIdleTime (* 3 60 60)))})
 
-(def conn-pool (pool db-spec))
+(defn ensure-database! [db-user db-pass db-sub-base db-name]
+  (let [db-spec {:classname "com.mysql.jdbc.Driver"
+                 :subprotocol "mysql"
+                 :subname db-sub-base
+                 :user db-user
+                 :password db-pass}
+        cpool (pool db-spec)]
+    (try
+      (jdbc/execute! cpool [(str "drop database " db-name)])
+      (catch Exception e
+        (.printStackTrace e)))
+    (jdbc/execute! cpool [(str "create database " db-name)])
+    (jdbc/execute! cpool [(str "use " db-name)]))
+  (let [db-spec {:classname "com.mysql.jdbc.Driver"
+                 :subprotocol "mysql"
+                 :subname (str db-sub-base "/" db-name)
+                 :user db-user
+                 :password db-pass}
+        cpool (pool db-spec)
+        values (mapv str (range 5000))]
+    (jdbc/execute!
+     cpool
+     (vector (jdbc/create-table-ddl
+              :words
+              [:id :int "PRIMARY KEY AUTO_INCREMENT"]
+              [:word "VARCHAR(32)"])))))
 
-(try
-  (jdbc/execute! conn-pool [(str "drop database " db-name)])
-  (catch Exception e
-    (.printStackTrace e)))
-
-(jdbc/execute! conn-pool [(str "create database " db-name)])
-(jdbc/execute! conn-pool [(str "use " db-name)])
-
-(def db-spec
-  {:classname "com.mysql.jdbc.Driver"
-   :subprotocol "mysql"
-   :subname (str db-sub-base "/" db-name)
-   :user db-user
-   :password db-pass})
-
-(def conn-pool (pool db-spec))
-
-(jdbc/execute!
- conn-pool
- (vector (jdbc/create-table-ddl
-          :words
-          [:id :int "PRIMARY KEY AUTO_INCREMENT"]
-          [:word "VARCHAR(32)"])))
-
+                                        ;(def db-name (or (env :test-db-name) "onyx_output_test"))
 (def words
   [{:word "Cat"}
    {:word "Orange"}
    {:word "Pan"}
    {:word "Door"}
-   {:word "Surf board"}])
+   {:word "Surf board"}
+   :done])
 
-(def in-chan (chan 1000))
-
-(doseq [word words]
-  (>!! in-chan word))
-
-(>!! in-chan :done)
-
-(def workflow
-  [[:in :transform]
-   [:transform :out]])
-
-(def catalog
-  [{:onyx/name :in
-    :onyx/plugin :onyx.plugin.core-async/input
-    :onyx/type :input
-    :onyx/medium :core.async
-    :onyx/batch-size 1000
-    :onyx/max-peers 1
-    :onyx/doc "Reads segments from a core.async channel"}
-
-   {:onyx/name :transform
-    :onyx/fn :onyx.plugin.output-test/transform
-    :onyx/type :function
-    :onyx/batch-size 1000
-    :onyx/doc "Transforms a segment to prepare for SQL persistence"}
-
-   {:onyx/name :out
-    :onyx/plugin :onyx.plugin.sql/write-rows
-    :onyx/type :output
-    :onyx/medium :sql
-    :sql/classname "com.mysql.jdbc.Driver"
-    :sql/subprotocol "mysql"
-    :sql/subname (str db-sub-base "/" db-name)
-    :sql/user db-user
-    :sql/password db-pass
-    :sql/table :words
-    :onyx/batch-size 1000
-    :onyx/doc "Writes segments from the :rows keys to the SQL database"}])
-
-(defn inject-in-ch [event lifecycle]
-  {:core.async/chan in-chan})
-
-(def in-calls
-  {:lifecycle/before-task-start inject-in-ch})
-
-(def lifecycles
-  [{:lifecycle/task :in
-    :lifecycle/calls :onyx.plugin.output-test/in-calls}
-   {:lifecycle/task :in
-    :lifecycle/calls :onyx.plugin.core-async/reader-calls}
-   {:lifecycle/task :out
-    :lifecycle/calls :onyx.plugin.sql/write-rows-calls}])
-
-(def v-peers (onyx.api/start-peers 3 peer-group))
-
-(def job-id
-  (:job-id (onyx.api/submit-job
-            peer-config
-            {:catalog catalog :workflow workflow :lifecycles lifecycles
-             :task-scheduler :onyx.task-scheduler/balanced})))
-
-(onyx.api/await-job-completion peer-config job-id)
-
-(def sql-map {:select [:*] :from [:words]})
-
-(def results (jdbc/query conn-pool (sql/format sql-map)))
-
-(fact results => (map-indexed (fn [k x] (assoc x :id (inc k))) words))
-
-(close! in-chan)
-
-(doseq [v-peer v-peers]
-  (onyx.api/shutdown-peer v-peer))
-
-(onyx.api/shutdown-peer-group peer-group)
-
-(onyx.api/shutdown-env dev-env)
+(deftest sql-output-test
+  (let [{:keys [env-config peer-config sql-config]} (read-config
+                                                     (io/resource "config.edn")
+                                                     {:profile :test})
+        {:keys [sql/username sql/password sql/subname sql/db-name]} sql-config
+        job (build-job username password subname db-name 10 1000)
+        {:keys [in]} (get-core-async-channels job)
+        cpool (pool {:classname "com.mysql.jdbc.Driver"
+                     :subprotocol "mysql"
+                     :subname (str subname "/" db-name)
+                     :user username
+                     :password password})]
+    (with-test-env [test-env [4 env-config peer-config]]
+      (ensure-database! username password subname db-name)
+      (pipe (spool words) in true)
+      (onyx.test-helper/validate-enough-peers! test-env job)
+      (->> (:job-id (onyx.api/submit-job peer-config job))
+           (onyx.api/await-job-completion peer-config))
+      (is (= (jdbc/query cpool (honey/format {:select [:*] :from [:words]}))
+             (map-indexed (fn [k x] (assoc x :id (inc k))) (butlast words)))))))
