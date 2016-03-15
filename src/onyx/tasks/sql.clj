@@ -17,8 +17,9 @@
   (s/->Both [os/TaskMap
              (merge
               {:sql/id s/Keyword
-               :sql/columns [s/Keyword]
-               :sql/rows-per-segment s/Num
+               (s/optional-key :sql/columns) [s/Keyword]
+               (s/optional-key :sql/rows-per-segment) s/Num
+               (s/optional-key :sql/read-buffer) s/Num
                UserTaskMapKey s/Any}
               SqlConnectionSettings)]))
 
@@ -30,6 +31,7 @@
                              :onyx/medium :sql
                              :sql/columns [:*]
                              :sql/rows-per-segment 500
+                             :sql/read-buffer 1000
                              :onyx/doc "Partitions a range of primary keys into subranges"}
                             opts)
            :lifecycles [{:lifecycle/task task-name
@@ -44,8 +46,6 @@
     password :- s/Str
     table :- s/Keyword
     id :- s/Keyword
-    columns :- [s/Keyword]
-    rows-per-segment :- s/Num
     task-opts :- {s/Any s/Any}]
    (partition-keys task-name (merge {:sql/classname classname
                                      :sql/subprotocol subprotocol
@@ -53,9 +53,7 @@
                                      :sql/user user
                                      :sql/password password
                                      :sql/table table
-                                     :sql/id id
-                                     :sql/columns columns
-                                     :sql/rows-per-segment rows-per-segment}
+                                     :sql/id id}
                                     task-opts))))
 
 (s/defn ^:always-validate partition-keys-by-uuid

@@ -98,7 +98,6 @@
     (doseq [word truncated-words]
       (jdbc/insert! cpool :words word))))
 
-
 (defn transform-word
   [word]
   {:id (:id word) :word (str (:word word) "!")})
