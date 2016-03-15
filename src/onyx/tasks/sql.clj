@@ -127,3 +127,37 @@
                                  :sql/password password
                                  :sql/table table}
                                 task-opts))))
+
+(def SqlUpsertRowsTaskMap
+  (s/->Both [os/TaskMap
+             (merge
+              {UserTaskMapKey s/Any}
+              SqlConnectionSettings)]))
+
+(s/defn ^:always-validate upsert-rows
+  ([task-name :- s/Keyword opts]
+   {:task {:task-map (merge {:onyx/name task-name
+                             :onyx/plugin :onyx.plugin.sql/upsert-rows
+                             :onyx/type :output
+                             :onyx/medium :sql
+                             :onyx/doc "Writes segments from the :rows keys to the SQL database based on :where key"}
+                            opts)
+           :lifecycles [{:lifecycle/task task-name
+                         :lifecycle/calls :onyx.plugin.sql/upsert-rows-calls}]}
+    :schema {:task-map SqlUpsertRowsTaskMap
+             :lifecycles [os/Lifecycle]}})
+  ([task-name :- s/Keyword
+    classname :- s/Str
+    subprotocol :- s/Str
+    subname :- s/Str
+    user :- s/Str
+    password :- s/Str
+    table :- s/Keyword
+    task-opts :- {s/Any s/Any}]
+   (upsert-rows task-name (merge {:sql/classname classname
+                                 :sql/subprotocol subprotocol
+                                 :sql/subname subname
+                                 :sql/user user
+                                 :sql/password password
+                                 :sql/table table}
+                                task-opts))))
