@@ -35,11 +35,8 @@
 
 (def db-name (or (env :test-db-name) "onyx_input_test"))
 
-(def db-sub-base 
-  ;"//172.16.112.128:3306"
-  "//127.0.0.1:3306")
+(def db-sub-base "//127.0.0.1:3306")
 
-;(def db-pass "somepass")
 (def db-pass "")
 
 (def db-spec
