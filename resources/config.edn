@@ -29,6 +29,6 @@
   :sql/username #env [TEST_DB_USER "root"]
   :sql/password ""
   :sql/subname #cond {;:default "mysql"
-                      :test "//192.168.99.100:3306"}  ;;change me
+                      :test "//127.0.0.1:3306"}  ;;change me
   :sql/classname "com.mysql.jdbc.Driver"
   :sql/subprotocol "mysql"}}
