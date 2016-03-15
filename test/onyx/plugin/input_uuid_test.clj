@@ -38,17 +38,16 @@
 
 (def db-user (or (env :test-db-user) "root"))
 
-(def db-name (or (env :test-db-name) "onyx_input_uuid_test"))
+(def db-name (or (env :test-db-name) "onyx_input_test"))
 
-(def db-sub-base 
-  "//127.0.0.1:3306")
+(def db-sub-base "//127.0.0.1:3306")
 
 (def db-pass "")
 
 (def db-spec
   {:classname "com.mysql.jdbc.Driver"
    :subprotocol "mysql"
-   :subname (str db-sub-base "/" db-name)
+   :subname db-sub-base
    :user db-user
    :password db-pass})
 
@@ -72,6 +71,15 @@
 (jdbc/execute! conn-pool [(str "create database " db-name)])
 (jdbc/execute! conn-pool [(str "use " db-name)])
 
+(def db-spec
+  {:classname "com.mysql.jdbc.Driver"
+   :subprotocol "mysql"
+   :subname (str db-sub-base "/" db-name)
+   :user db-user
+   :password db-pass})
+
+(def conn-pool (pool db-spec))
+
 (jdbc/execute!
  conn-pool
  (vector (jdbc/create-table-ddl
@@ -84,7 +92,6 @@
 
 (doseq [person values]
   (jdbc/insert! conn-pool :people {:id (onyx.plugin.util/uuid-to-bytes (uuid)) :name person}))
-
 
 (def workflow
   [[:partition-keys-by-uuid :read-rows]
