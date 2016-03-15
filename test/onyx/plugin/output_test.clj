@@ -92,7 +92,7 @@
    {:word "Surf board"}
    :done])
 
-(deftest sql-input-test
+(deftest sql-output-test
   (let [{:keys [env-config peer-config sql-config]} (read-config
                                                      (io/resource "config.edn")
                                                      {:profile :test})

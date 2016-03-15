@@ -94,13 +94,7 @@
     (doseq [person (mapv str (range 5000))]
       (jdbc/insert! cpool :people {:id (onyx.plugin.util/uuid-to-bytes (uuid)) :name person}))))
 
-#_(def results (take-segments! out-chan))
-
-#_(fact (sort (map :name (butlast results)))
-        =>
-        (sort values))
-
-(deftest sql-input-test
+(deftest sql-uuid-input-test
   (let [{:keys [env-config peer-config sql-config]} (read-config
                                                      (io/resource "config.edn")
                                                      {:profile :test})

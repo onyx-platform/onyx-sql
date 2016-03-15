@@ -103,9 +103,7 @@
   [word]
   {:id (:id word) :word (str (:word word) "!")})
 
-#_(fact results => )
-
-(deftest sql-input-test
+(deftest sql-update-output-test
   (let [{:keys [env-config peer-config sql-config]} (read-config
                                                      (io/resource "config.edn")
                                                      {:profile :test})
