@@ -238,7 +238,7 @@
         [conn pool]
         (doseq [row (:rows (:message msg))]
           (jdbc/insert! conn table row))))
-    {:onyx.core/written? true})
+    {:sql/written? true})
 
   (seal-resource 
     [_ {:keys [onyx.core/results]}]
@@ -257,7 +257,7 @@
         [conn pool]
         (doseq [row (:rows (:message msg))]
           (jdbc/update! conn (:sql/table task-map) row (sql-dsl/where (:where (:message msg)))))))
-    {:onyx.core/written? true})
+    {:sql/written? true})
 
   (seal-resource 
     [_ event]
