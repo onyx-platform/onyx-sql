@@ -28,8 +28,7 @@
                             opts)
            :lifecycles [{:lifecycle/task task-name
                          :lifecycle/calls :onyx.plugin.sql/partition-keys-calls}]}
-    :schema {:task-map SqlPartitionKeysTaskMap
-             :lifecycles [os/Lifecycle]}})
+    :schema {:task-map SqlPartitionKeysTaskMap}})
   ([task-name :- s/Keyword
     classname :- s/Str
     subprotocol :- s/Str
@@ -60,8 +59,7 @@
                             opts)
            :lifecycles [{:lifecycle/task task-name
                          :lifecycle/calls :onyx.plugin.sql/partition-uuid-calls}]}
-    :schema {:task-map SqlPartitionKeysTaskMap
-             :lifecycles [os/Lifecycle]}})
+    :schema {:task-map SqlPartitionKeysTaskMap}})
   ([task-name :- s/Keyword
     classname :- s/Str
     subprotocol :- s/Str
@@ -103,8 +101,7 @@
                             opts)
            :lifecycles [{:lifecycle/task task-name
                          :lifecycle/calls :onyx.plugin.sql/read-rows-calls}]}
-    :schema {:task-map SqlReadRowsTaskMap
-             :lifecycles [os/Lifecycle]}})
+    :schema {:task-map SqlReadRowsTaskMap}})
   ([task-name :- s/Keyword
     classname :- s/Str
     subprotocol :- s/Str
@@ -142,8 +139,7 @@
                             opts)
            :lifecycles [{:lifecycle/task task-name
                          :lifecycle/calls :onyx.plugin.sql/write-rows-calls}]}
-    :schema {:task-map SqlWriteRowsTaskMap
-             :lifecycles [os/Lifecycle]}})
+    :schema {:task-map SqlWriteRowsTaskMap}})
   ([task-name :- s/Keyword
     classname :- s/Str
     subprotocol :- s/Str
@@ -179,8 +175,7 @@
                             opts)
            :lifecycles [{:lifecycle/task task-name
                          :lifecycle/calls :onyx.plugin.sql/upsert-rows-calls}]}
-    :schema {:task-map SqlUpsertRowsTaskMap
-             :lifecycles [os/Lifecycle]}})
+    :schema {:task-map SqlUpsertRowsTaskMap}})
   ([task-name :- s/Keyword
     classname :- s/Str
     subprotocol :- s/Str
