@@ -2,26 +2,18 @@
   (:require [schema.core :as s]
             [onyx.schema :as os]))
 
-(def UserTaskMapKey
-  (os/build-allowed-key-ns :sql))
-
-(def SqlConnectionSettings
-  {:sql/classname s/Str
+(def SqlPartitionKeysTaskMap
+  {:sql/id s/Keyword
+   (s/optional-key :sql/columns) [s/Keyword]
+   (s/optional-key :sql/rows-per-segment) s/Num
+   (s/optional-key :sql/read-buffer) s/Num
+   :sql/classname s/Str
    :sql/subprotocol s/Str
    :sql/subname s/Str
    :sql/user s/Str
    :sql/password s/Str
-   :sql/table s/Keyword})
-
-(def SqlPartitionKeysTaskMap
-  (s/->Both [os/TaskMap
-             (merge
-              {:sql/id s/Keyword
-               (s/optional-key :sql/columns) [s/Keyword]
-               (s/optional-key :sql/rows-per-segment) s/Num
-               (s/optional-key :sql/read-buffer) s/Num
-               UserTaskMapKey s/Any}
-              SqlConnectionSettings)]))
+   :sql/table s/Keyword
+   (os/restricted-ns :sql) s/Any})
 
 (s/defn ^:always-validate partition-keys
   ([task-name :- s/Keyword opts]
@@ -36,8 +28,7 @@
                             opts)
            :lifecycles [{:lifecycle/task task-name
                          :lifecycle/calls :onyx.plugin.sql/partition-keys-calls}]}
-    :schema {:task-map SqlPartitionKeysTaskMap
-             :lifecycles [os/Lifecycle]}})
+    :schema {:task-map SqlPartitionKeysTaskMap}})
   ([task-name :- s/Keyword
     classname :- s/Str
     subprotocol :- s/Str
@@ -68,8 +59,7 @@
                             opts)
            :lifecycles [{:lifecycle/task task-name
                          :lifecycle/calls :onyx.plugin.sql/partition-uuid-calls}]}
-    :schema {:task-map SqlPartitionKeysTaskMap
-             :lifecycles [os/Lifecycle]}})
+    :schema {:task-map SqlPartitionKeysTaskMap}})
   ([task-name :- s/Keyword
     classname :- s/Str
     subprotocol :- s/Str
@@ -93,11 +83,14 @@
                                             task-opts))))
 
 (def SqlReadRowsTaskMap
-  (s/->Both [os/TaskMap
-             (merge
-              {:sql/id s/Keyword
-               UserTaskMapKey s/Any}
-              SqlConnectionSettings)]))
+  {:sql/id s/Keyword
+   :sql/classname s/Str
+   :sql/subprotocol s/Str
+   :sql/subname s/Str
+   :sql/user s/Str
+   :sql/password s/Str
+   :sql/table s/Keyword
+   (os/restricted-ns :sql) s/Any})
 
 (s/defn ^:always-validate read-rows
   ([task-name :- s/Keyword opts]
@@ -108,8 +101,7 @@
                             opts)
            :lifecycles [{:lifecycle/task task-name
                          :lifecycle/calls :onyx.plugin.sql/read-rows-calls}]}
-    :schema {:task-map SqlReadRowsTaskMap
-             :lifecycles [os/Lifecycle]}})
+    :schema {:task-map SqlReadRowsTaskMap}})
   ([task-name :- s/Keyword
     classname :- s/Str
     subprotocol :- s/Str
@@ -129,10 +121,13 @@
                                task-opts))))
 
 (def SqlWriteRowsTaskMap
-  (s/->Both [os/TaskMap
-             (merge
-              {UserTaskMapKey s/Any}
-              SqlConnectionSettings)]))
+  {:sql/classname s/Str
+   :sql/subprotocol s/Str
+   :sql/subname s/Str
+   :sql/user s/Str
+   :sql/password s/Str
+   :sql/table s/Keyword
+   (os/restricted-ns :sql) s/Any})
 
 (s/defn ^:always-validate write-rows
   ([task-name :- s/Keyword opts]
@@ -144,8 +139,7 @@
                             opts)
            :lifecycles [{:lifecycle/task task-name
                          :lifecycle/calls :onyx.plugin.sql/write-rows-calls}]}
-    :schema {:task-map SqlWriteRowsTaskMap
-             :lifecycles [os/Lifecycle]}})
+    :schema {:task-map SqlWriteRowsTaskMap}})
   ([task-name :- s/Keyword
     classname :- s/Str
     subprotocol :- s/Str
@@ -163,10 +157,13 @@
                                 task-opts))))
 
 (def SqlUpsertRowsTaskMap
-  (s/->Both [os/TaskMap
-             (merge
-              {UserTaskMapKey s/Any}
-              SqlConnectionSettings)]))
+  {:sql/classname s/Str
+   :sql/subprotocol s/Str
+   :sql/subname s/Str
+   :sql/user s/Str
+   :sql/password s/Str
+   :sql/table s/Keyword
+   (os/restricted-ns :sql) s/Any})
 
 (s/defn ^:always-validate upsert-rows
   ([task-name :- s/Keyword opts]
@@ -178,8 +175,7 @@
                             opts)
            :lifecycles [{:lifecycle/task task-name
                          :lifecycle/calls :onyx.plugin.sql/upsert-rows-calls}]}
-    :schema {:task-map SqlUpsertRowsTaskMap
-             :lifecycles [os/Lifecycle]}})
+    :schema {:task-map SqlUpsertRowsTaskMap}})
   ([task-name :- s/Keyword
     classname :- s/Str
     subprotocol :- s/Str
