@@ -5,5 +5,16 @@ set -o pipefail
 set -o nounset
 set -o xtrace
 
-git clone https://github.com/onyx-platform/onyx-release-scripts.git
-bash onyx-release-scripts/release_plugin.sh "$@"
+REPO_SRC="https://github.com/onyx-platform/onyx-release-scripts.git"
+LOCAL_REPO="release-scripts"
+LOCAL_REPO_VC_DIR=$LOCAL_REPO/.git
+
+if [ ! -d $LOCAL_REPO_VC_DIR ]
+then
+  git clone $REPO_SRC $LOCAL_REPO
+else
+  cd $LOCAL_REPO
+  git pull $REPO_SRC
+fi
+
+bash "$LOCAL_REPO/release_plugin.sh" "$@"
