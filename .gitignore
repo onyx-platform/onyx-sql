@@ -12,3 +12,4 @@ data
 hs_err_pid*
 *.iml
 .idea/
+scripts/release-scripts
