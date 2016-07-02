@@ -101,9 +101,9 @@
                          partitions))
         ;; Attempt to write. It will fail if it's already been written. Read it back
         ;; in either case.
-        _ (extensions/write-chunk log :chunk chunk task-id)
-        content (extensions/read-chunk log :chunk task-id)
         checkpoint-key (str job-id "#" task-id)
+        _ (extensions/write-chunk log :chunk chunk checkpoint-key)
+        content (extensions/read-chunk log :chunk checkpoint-key)
         commit-go-loop (start-commit-loop! log checkpoint-key content checkpoint-ch checkpoint-ms)]
     (go
      (try
