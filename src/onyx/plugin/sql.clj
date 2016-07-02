@@ -74,20 +74,20 @@
 (defn update-partition [content acked]
   (dissoc content acked))
 
-(defn start-commit-loop! [log task-id content checkpoint-ch checkpoint-loop-ms]
+(defn start-commit-loop! [log checkpoint-key content checkpoint-ch checkpoint-loop-ms]
   (go-loop [updated-content content]
            (let [timeout-ch (timeout checkpoint-loop-ms)
                  [acked ch] (alts!! [timeout-ch checkpoint-ch] :priority true)] 
              (cond (= ch timeout-ch)
                    (do 
-                     (extensions/force-write-chunk log :chunk updated-content task-id)
+                     (extensions/force-write-chunk log :chunk updated-content checkpoint-key)
                      (recur updated-content))
                    (and (= ch checkpoint-ch)
                         (not (nil? acked)))
                    (recur (update-partition updated-content acked))))))
 
 (defn inject-partition-keys
-  [table-partitioner {:keys [onyx.core/pipeline onyx.core/task-map onyx.core/log onyx.core/task-id] :as event} 
+  [table-partitioner {:keys [onyx.core/pipeline onyx.core/task-map onyx.core/log onyx.core/job-id onyx.core/task-id] :as event} 
    lifecycle]
   (let [ch (:read-ch pipeline)
         checkpoint-ch (:checkpoint-ch pipeline)
@@ -103,7 +103,8 @@
         ;; in either case.
         _ (extensions/write-chunk log :chunk chunk task-id)
         content (extensions/read-chunk log :chunk task-id)
-        commit-go-loop (start-commit-loop! log task-id content checkpoint-ch checkpoint-ms)]
+        checkpoint-key (str job-id "#" task-id)
+        commit-go-loop (start-commit-loop! log checkpoint-key content checkpoint-ch checkpoint-ms)]
     (go
      (try
          (doseq [part (keys content)]
