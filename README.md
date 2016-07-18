@@ -124,9 +124,9 @@ Catalog entry:
  :onyx/doc "Writes segments from the :rows keys to the SQL database"}
 ```
 
-##### upsert-
+##### upsert-rows
 
-Upsert segments to a SQL database.
+Upserts segments to a SQL database.
 
 Catalog entry:
 
@@ -157,7 +157,7 @@ Lifecycle entry:
 |key                     | type      | description
 |------------------------|-----------|------------
 |`:sql/classname`        | `string`  | The JDBC classname driver to use
-|`:sql/subprotocol`      | `string`  | The database JDBC subprotool
+|`:sql/subprotocol`      | `string`  | The database JDBC subprotocol
 |`:sql/subname`          | `string`  | The subname to connect to
 |`:sql/user`             | `string`  | The user to authenticate with
 |`:sql/password`         | `string`  | The password to authenticate with
@@ -173,6 +173,6 @@ Pull requests into the master branch are welcomed.
 
 #### License
 
-Copyright © 2015 Michael Drogalis
+Copyright © 2016 Distributed Masonry
 
 Distributed under the Eclipse Public License, the same as Clojure.
