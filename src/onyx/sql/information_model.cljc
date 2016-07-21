@@ -32,7 +32,7 @@
              {:type :keyword
               :doc "The name of a unique, monotonically increasing integer column."}
 
-             :sql/rows-per-column
+             :sql/rows-per-segment
              {:type :integer
               :doc "The number of rows to compress into a single segment."}
 
@@ -132,7 +132,7 @@
      :sql/password
      :sql/table
      :sql/id
-     :sql/rows-per-column
+     :sql/rows-per-segment
      :sql/read-buffer]
 
     :onyx.plugin.sql/read-rows
