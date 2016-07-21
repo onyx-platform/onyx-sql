@@ -41,7 +41,7 @@
               :optional? true
               :default 1000
               :doc "The number of messages to buffer via core.async, default is `1000`."}}}
-    ::onyx.plugin.sql/read-rows
+    :onyx.plugin.sql/read-rows
     {:summary "Reads a partition of a rows from a SQL table."
      :model {:sql/classname
              {:type :string
