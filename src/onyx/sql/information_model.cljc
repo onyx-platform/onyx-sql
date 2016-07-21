@@ -2,7 +2,7 @@
 
 (def model
   {:catalog-entry
-   {:sql/partition-keys
+   {:onyx.plugin.sql/partition-keys
     {:summary "Partitions a table of rows into chunks to be read by another task. Requires a column in the table to be numerically ordered."
      :model {:sql/classname
              {:type :string
@@ -41,7 +41,7 @@
               :optional? true
               :default 1000
               :doc "The number of messages to buffer via core.async, default is `1000`."}}}
-    :sql/read-rows
+    ::onyx.plugin.sql/read-rows
     {:summary "Reads a partition of a rows from a SQL table."
      :model {:sql/classname
              {:type :string
@@ -71,7 +71,7 @@
              {:type :keyword
               :doc "The name of a unique, monotonically increasing integer column."}}}
 
-    :sql/write-rows
+    :onyx.plugin.sql/write-rows
     {:summary "Writes segments to a SQL database. Expects segments with the same schema as the table they are being inserted into. They must be batched together into a single segment."
      :model {:sql/classname
              {:type :string
@@ -97,7 +97,7 @@
              {:type :keyword
               :doc "The table to read/write from/to."}}}
 
-    :sql/upsert-rows
+    :onyx.plugin.sql/upsert-rows
     {:summary "Upserts segments to a SQL database."
      :model {:sql/classname
              {:type :string
@@ -124,7 +124,7 @@
               :doc "The table to read/write from/to."}}}}
 
    :display-order
-   {:sql/partition-keys
+   {:onyx.plugin.sql/partition-keys
     [:sql/classname
      :sql/subname
      :sql/subprotocol
@@ -135,7 +135,7 @@
      :sql/rows-per-column
      :sql/read-buffer]
 
-    :sql/read-rows
+    :onyx.plugin.sql/read-rows
     [:sql/classname
      :sql/subname
      :sql/subprotocol
@@ -144,7 +144,7 @@
      :sql/table
      :sql/id]
 
-    :sql/write-rows
+    :onyx.plugin.sql/write-rows
     [:sql/classname
      :sql/subname
      :sql/subprotocol
@@ -152,7 +152,7 @@
      :sql/password
      :sql/table]
 
-    :sql/upsert-rows
+    :onyx.plugin.sql/upsert-rows
     [:sql/classname
      :sql/subname
      :sql/subprotocol
