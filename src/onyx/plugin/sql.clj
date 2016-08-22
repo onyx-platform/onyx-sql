@@ -153,7 +153,7 @@
   p-ext/PipelineInput
 
   (ack-segment [_ _ segment-id]
-    (let [part (get @pending-messages segment-id)]
+    (when-let [part (get @pending-messages segment-id)]
       (>!! checkpoint-ch (:message part))
       (swap! pending-messages dissoc segment-id)))
 
