@@ -148,8 +148,8 @@ Catalog entry:
 Lifecycle entry:
 
 ```clojure
-{:lifecycle/task :write-rows
- :lifecycle/calls :onyx.plugin.sql/write-rows-calls}
+{:lifecycle/task :upsert-rows
+ :lifecycle/calls :onyx.plugin.sql/upsert-rows-calls}
 ```
 
 #### Attributes
