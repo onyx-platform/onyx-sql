@@ -123,6 +123,27 @@
              {:type :keyword
               :doc "The table to read/write from/to."}}}}
 
+   :lifecycles-entry
+   {:onyx.plugin.sql/partition-keys
+    {:model
+     [{:task.lifecycle/name :partition-keys
+       :lifecycle/calls :onyx.plugin.sql/partition-keys-calls}]}
+
+    :onyx.plugin.sql/read-rows
+    {:model
+     [{:task.lifecycle/name :read-rows
+       :lifecycle/calls :onyx.plugin.sql/read-rows-calls}]}
+
+    :onyx.plugin.sql/write-rows
+    {:model
+     [{:task.lifecycle/name :write-rows
+       :lifecycle/calls :onyx.plugin.sql/write-rows-calls}]}
+
+    :onyx.plugin.sql/upsert-rows
+    {:model
+     [{:task.lifecycle/name :upsert-rows
+       :lifecycle/calls :onyx.plugin.sql/upsert-rows-calls}]}}
+
    :display-order
    {:onyx.plugin.sql/partition-keys
     [:sql/classname
