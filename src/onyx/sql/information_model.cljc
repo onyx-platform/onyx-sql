@@ -34,6 +34,8 @@
 
              :sql/rows-per-segment
              {:type :integer
+              :optional? true
+              :default 1000
               :doc "The number of rows to compress into a single segment."}
 
              :sql/read-buffer
