@@ -92,17 +92,17 @@
                    (recur (update-partition updated-content acked))))))
 
 (defn inject-partition-keys
-  [table-partitioner {:keys [onyx.core/pipeline onyx.core/task-map onyx.core/log onyx.core/job-id onyx.core/task-id] :as event} 
+  [table-partitioner {:keys [onyx.core/pipeline onyx.core/task-map onyx.core/log onyx.core/job-id onyx.core/task-id] :as event}
    lifecycle]
   (let [ch (:read-ch pipeline)
         checkpoint-ch (:checkpoint-ch pipeline)
         checkpoint-ms (:checkpoint-ms pipeline)
         pending-messages (:pending-messages pipeline)
         pool (task->pool task-map)
-        [partitions event-map] (table-partitioner (assoc event :sql/pool pool))
+        [partitions partitioner-event-map] (table-partitioner (assoc event :sql/pool pool))
         content (:content pipeline)
-        chunk (into {} 
-                    (map (fn [p] [p :incomplete]) 
+        chunk (into {}
+                    (map (fn [p] [p :incomplete])
                          partitions))
         ;; Attempt to write. It will fail if it's already been written. Read it back
         ;; in either case.
@@ -117,9 +117,10 @@
          (>! ch :done)
        (catch Exception e
          (fatal e))))
-    (merge event-map {:sql/pool pool
-                       :sql/read-ch ch
-                       :sql/pending-messages pending-messages})))
+    (merge partitioner-event-map
+           {:sql/pool pool
+            :sql/read-ch ch
+            :sql/pending-messages pending-messages})))
 
 (defn close-partition-keys
   [{:keys [sql/pool] :as event} lifecycle]

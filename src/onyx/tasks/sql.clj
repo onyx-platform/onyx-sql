@@ -6,8 +6,8 @@
   {:sql/id s/Keyword
    (s/optional-key :sql/columns) [s/Keyword]
    (s/optional-key :sql/rows-per-segment) s/Num
-   (s/optional-key :sql/lower-bound) s/Num
-   (s/optional-key :sql/upper-bound) s/Num
+   (s/optional-key :sql/lower-bound) (s/cond-pre s/Uuid s/Num)
+   (s/optional-key :sql/upper-bound) (s/cond-pre s/Uuid s/Num)
    (s/optional-key :sql/read-buffer) s/Num
    :sql/classname s/Str
    :sql/subprotocol s/Str
