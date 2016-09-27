@@ -49,6 +49,10 @@ Catalog entry:
  :sql/table :table-name
  :sql/id :column-to-split-by
  :sql/columns [:*]
+ ;; Optional
+ :sql/lower-bound selected-min
+ ;; Optional
+ :sql/upper-bound selected-max
  ;; 500 * 1000 = 50,000 rows
  ;; to be processed within :onyx/pending-timeout, 60s by default
  :sql/rows-per-segment 500
@@ -66,6 +70,10 @@ Lifecycle entry:
 ```
 
 `:sql/columns` supports restricting the select to only certain columns, e.g. `:sql/columns [:id :name]`.
+
+`:sql/lower-bound` overrides `partition-key` calculation of min from the `:sql/id` column.
+
+`:sql/upper-bound` overrides `partition-key` calculation of max from the `:sql/id` column.
 
 ##### read-rows
 
@@ -164,7 +172,9 @@ Lifecycle entry:
 |`:sql/table`            | `keyword` | The table to read/write from/to
 |`:sql/columns`          | `vector`  | Columns to select
 |`:sql/id`               | `keyword` | The name of a unique, monotonically increasing integer column
-|`:sql/rows-per-segment` | `integer` | The number of rows to compress into a single segment
+|`:sql/lower-bound` | `integer` | Overrides the calculation of min value from the id column.
+|`:sql/upper-bound` | `integer` | Overrides the calculation of max value from the id column.
+|`:sql/rows-per-segment` | `integer` | the number of rows to compress into a single segment
 |`:sql/read-buffer`      | `integer` | The number of messages to buffer via core.async, default is `1000`
 
 #### Contributing
