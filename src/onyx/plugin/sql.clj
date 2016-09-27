@@ -46,13 +46,15 @@
         step (bigint (/ (- n-max n-min) steps-num))
         ranges (partition-all 2 1 (range n-min n-max step))
         columns (or (:sql/columns task-map) [:*])]
-    (map (fn [[l h]]
-           {:low (util/bigint-to-bytes l)
-            :high (util/bigint-to-bytes (dec (or h (inc n-max))))
-            :table (:sql/table task-map)
-            :id (:sql/id task-map)
-            :columns columns})
-         ranges)))
+    [(map (fn [[l h]]
+            {:low (util/bigint-to-bytes l)
+             :high (util/bigint-to-bytes (dec (or h (inc n-max))))
+             :table (:sql/table task-map)
+             :id (:sql/id task-map)
+             :columns columns})
+          ranges)
+     {:sql/lower-bound n-min
+      :sql/upper-bound n-max}]))
 
 (defn partition-table [{:keys [onyx.core/task-map sql/pool] :as event}]
   (let [table (name (:sql/table task-map))
@@ -63,13 +65,16 @@
                   (:max (first (jdbc/query pool (vector (format "select max(%s) as max from %s" id-col table))))))
         ranges (partition-all 2 1 (range n-min n-max (:sql/rows-per-segment task-map)))
         columns (or (:sql/columns task-map) [:*])]
-    (map (fn [[l h]]
-           {:low l
-            :high (dec (or h (inc n-max)))
-            :table (:sql/table task-map)
-            :id (:sql/id task-map)
-            :columns columns})
-         ranges)))
+    [(map (fn [[l h]]
+            {:low l
+             :high (dec (or h (inc n-max)))
+             :table (:sql/table task-map)
+             :id (:sql/id task-map)
+             :columns columns})
+          ranges)
+     {:sql/lower-bound n-min
+      :sql/upper-bound n-max}]))
+
 
 (defn update-partition [content acked]
   (dissoc content acked))
@@ -77,9 +82,9 @@
 (defn start-commit-loop! [log checkpoint-key content checkpoint-ch checkpoint-loop-ms]
   (go-loop [updated-content content]
            (let [timeout-ch (timeout checkpoint-loop-ms)
-                 [acked ch] (alts!! [timeout-ch checkpoint-ch] :priority true)] 
+                 [acked ch] (alts!! [timeout-ch checkpoint-ch] :priority true)]
              (cond (= ch timeout-ch)
-                   (do 
+                   (do
                      (extensions/force-write-chunk log :chunk updated-content checkpoint-key)
                      (recur updated-content))
                    (and (= ch checkpoint-ch)
@@ -87,17 +92,17 @@
                    (recur (update-partition updated-content acked))))))
 
 (defn inject-partition-keys
-  [table-partitioner {:keys [onyx.core/pipeline onyx.core/task-map onyx.core/log onyx.core/job-id onyx.core/task-id] :as event} 
+  [table-partitioner {:keys [onyx.core/pipeline onyx.core/task-map onyx.core/log onyx.core/job-id onyx.core/task-id] :as event}
    lifecycle]
   (let [ch (:read-ch pipeline)
         checkpoint-ch (:checkpoint-ch pipeline)
         checkpoint-ms (:checkpoint-ms pipeline)
         pending-messages (:pending-messages pipeline)
         pool (task->pool task-map)
-        partitions (table-partitioner (assoc event :sql/pool pool))
+        [partitions partitioner-event-map] (table-partitioner (assoc event :sql/pool pool))
         content (:content pipeline)
-        chunk (into {} 
-                    (map (fn [p] [p :incomplete]) 
+        chunk (into {}
+                    (map (fn [p] [p :incomplete])
                          partitions))
         ;; Attempt to write. It will fail if it's already been written. Read it back
         ;; in either case.
@@ -112,9 +117,10 @@
          (>! ch :done)
        (catch Exception e
          (fatal e))))
-    {:sql/pool pool
-     :sql/read-ch ch
-     :sql/pending-messages pending-messages}))
+    (merge partitioner-event-map
+           {:sql/pool pool
+            :sql/read-ch ch
+            :sql/pending-messages pending-messages})))
 
 (defn close-partition-keys
   [{:keys [sql/pool] :as event} lifecycle]

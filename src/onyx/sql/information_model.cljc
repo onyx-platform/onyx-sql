@@ -30,10 +30,22 @@
 
              :sql/id
              {:type :keyword
-              :doc "The name of a unique, monotonically increasing integer column."}
+              :doc "the name of a unique, monotonically increasing integer column."}
+
+             :sql/lower-bound
+             {:type :integer
+              :optional? true
+              :doc "Overrides calculation of min value from the id column."}
+
+             :sql/upper-bound
+             {:type :integer
+              :optional? true
+              :doc "Overrides calculation of max value from the id column."}
 
              :sql/rows-per-segment
              {:type :integer
+              :optional? true
+              :default 1000
               :doc "The number of rows to compress into a single segment."}
 
              :sql/read-buffer
@@ -153,6 +165,8 @@
      :sql/password
      :sql/table
      :sql/id
+     :sql/lower-bound
+     :sql/upper-bound
      :sql/rows-per-segment
      :sql/read-buffer]
 
