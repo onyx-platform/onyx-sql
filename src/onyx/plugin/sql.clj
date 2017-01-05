@@ -251,6 +251,25 @@
     [_ {:keys [onyx.core/results]}]
     {}))
 
+(defrecord SqlWriteBatch [pool table]
+  p-ext/Pipeline
+  (read-batch
+    [_ event]
+    (function/read-batch event))
+
+  (write-batch
+    [_ {:keys [onyx.core/results]}]
+    (jdbc/with-db-transaction
+      [conn pool]
+      (doseq [msg (mapcat :leaves (:tree results))]
+        (doseq [row (:message msg)]
+          (jdbc/insert! conn table row))))
+    {:sql/written? true})
+
+  (seal-resource
+    [_ {:keys [onyx.core/results]}]
+    {}))
+
 (defrecord SqlUpsertRows [pool table]
   p-ext/Pipeline
   (read-batch 
@@ -275,6 +294,12 @@
         table (:sql/table task-map)
         pool (task->pool task-map)]
     (->SqlWriteRows pool table)))
+
+(defn write-batch [pipeline-data]
+  (let [task-map (:onyx.core/task-map pipeline-data)
+        table (:sql/table task-map)
+        pool (task->pool task-map)]
+    (->SqlWriteBatch pool table)))
 
 (defn upsert-rows [pipeline-data]
   (let [task-map (:onyx.core/task-map pipeline-data)

@@ -160,6 +160,29 @@ Lifecycle entry:
  :lifecycle/calls :onyx.plugin.sql/upsert-rows-calls}
 ```
 
+##### write-batch
+
+Like `write-rows`, except the entire batch of segments in the lifecycle
+are written together in one transaction. Thus, each segment is itself a row,
+and collecting segments together with `:rows` is not required.
+
+Catalog entry:
+
+```clojure
+{:onyx/name :write-batch
+ :onyx/plugin :onyx.plugin.sql/write-batch
+ :onyx/type :output
+ :onyx/medium :sql
+ :sql/classname "my.class.name"
+ :sql/subprotocol "db-subprotocol"
+ :sql/subname "db-sub-name"
+ :sql/user "db-user"
+ :sql/password "db-pass"
+ :sql/table :table-name
+ :onyx/batch-size batch-size
+ :onyx/doc "Writes segments to the SQL database"}
+```
+
 #### Attributes
 
 |key                     | type      | description

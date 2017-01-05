@@ -109,6 +109,32 @@
              {:type :keyword
               :doc "The table to read/write from/to."}}}
 
+    :onyx.plugin.sql/write-batch
+    {:summary "Like `write-rows`, except the entire batch of segments in the lifecycle are written together in one transaction. Thus, each segment is itself a row,and collecting segments together with `:rows` is not required. "
+     :model {:sql/classname
+             {:type :string
+              :doc "The JDBC classname driver to use."}
+
+             :sql/subprotocol
+             {:type :string
+              :doc "The database JDBC subprotocol."}
+
+             :sql/subname
+             {:type :string
+              :doc "The subname to connect to."}
+
+             :sql/user
+             {:type :string
+              :doc "The user to authenticate with."}
+
+             :sql/password
+             {:type :string
+              :doc "The password to authenticate with."}
+
+             :sql/table
+             {:type :keyword
+              :doc "The table to read/write from/to."}}}
+
     :onyx.plugin.sql/upsert-rows
     {:summary "Upserts segments to a SQL database."
      :model {:sql/classname
@@ -154,7 +180,12 @@
     :onyx.plugin.sql/upsert-rows
     {:model
      [{:task.lifecycle/name :upsert-rows
-       :lifecycle/calls :onyx.plugin.sql/upsert-rows-calls}]}}
+       :lifecycle/calls :onyx.plugin.sql/upsert-rows-calls}]}
+
+    :onyx.plugin.sql/write-batch
+    {:model
+     [{:task.lifecycle/name :write-batch
+       :lifecycle/calls :onyx.plugin.sql/write-rows-calls}]}}
 
    :display-order
    {:onyx.plugin.sql/partition-keys
@@ -188,6 +219,14 @@
      :sql/table]
 
     :onyx.plugin.sql/upsert-rows
+    [:sql/classname
+     :sql/subname
+     :sql/subprotocol
+     :sql/user
+     :sql/password
+     :sql/table]
+
+    :onyx.plugin.sql/write-batch
     [:sql/classname
      :sql/subname
      :sql/subprotocol
