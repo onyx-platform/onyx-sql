@@ -7,7 +7,7 @@ Onyx plugin providing read and write facilities for SQL databases with JDBC supp
 In your project file:
 
 ```clojure
-[org.onyxplatform/onyx-sql "0.9.10.1-SNAPSHOT"]
+[org.onyxplatform/onyx-sql "0.9.15.1-SNAPSHOT"]
 ```
 
 In your peer boot-up namespace:
@@ -49,6 +49,10 @@ Catalog entry:
  :sql/table :table-name
  :sql/id :column-to-split-by
  :sql/columns [:*]
+ ;; Optional
+ :sql/lower-bound selected-min
+ ;; Optional
+ :sql/upper-bound selected-max
  ;; 500 * 1000 = 50,000 rows
  ;; to be processed within :onyx/pending-timeout, 60s by default
  :sql/rows-per-segment 500
@@ -66,6 +70,10 @@ Lifecycle entry:
 ```
 
 `:sql/columns` supports restricting the select to only certain columns, e.g. `:sql/columns [:id :name]`.
+
+`:sql/lower-bound` overrides `partition-key` calculation of min from the `:sql/id` column.
+
+`:sql/upper-bound` overrides `partition-key` calculation of max from the `:sql/id` column.
 
 ##### read-rows
 
@@ -152,6 +160,29 @@ Lifecycle entry:
  :lifecycle/calls :onyx.plugin.sql/upsert-rows-calls}
 ```
 
+##### write-batch
+
+Like `write-rows`, except the entire batch of segments in the lifecycle
+are written together in one transaction. Thus, each segment is itself a row,
+and collecting segments together with `:rows` is not required.
+
+Catalog entry:
+
+```clojure
+{:onyx/name :write-batch
+ :onyx/plugin :onyx.plugin.sql/write-batch
+ :onyx/type :output
+ :onyx/medium :sql
+ :sql/classname "my.class.name"
+ :sql/subprotocol "db-subprotocol"
+ :sql/subname "db-sub-name"
+ :sql/user "db-user"
+ :sql/password "db-pass"
+ :sql/table :table-name
+ :onyx/batch-size batch-size
+ :onyx/doc "Writes segments to the SQL database"}
+```
+
 #### Attributes
 
 |key                     | type      | description
@@ -164,7 +195,9 @@ Lifecycle entry:
 |`:sql/table`            | `keyword` | The table to read/write from/to
 |`:sql/columns`          | `vector`  | Columns to select
 |`:sql/id`               | `keyword` | The name of a unique, monotonically increasing integer column
-|`:sql/rows-per-segment` | `integer` | The number of rows to compress into a single segment
+|`:sql/lower-bound` | `integer` | Overrides the calculation of min value from the id column.
+|`:sql/upper-bound` | `integer` | Overrides the calculation of max value from the id column.
+|`:sql/rows-per-segment` | `integer` | the number of rows to compress into a single segment
 |`:sql/read-buffer`      | `integer` | The number of messages to buffer via core.async, default is `1000`
 
 #### Contributing
