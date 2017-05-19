@@ -5,8 +5,7 @@
              [io :as io]
              [jdbc :as jdbc]]
             [clojure.test :refer [deftest is]]
-            [clojure.core.async :refer [pipe]]
-            [clojure.core.async.lab :refer [spool]]
+            [clojure.core.async :refer [pipe to-chan]]
             [onyx api
              [job :refer [add-task]]
              [test-helper :refer [with-test-env]]]
@@ -106,7 +105,7 @@
                      :password password})]
     (with-test-env [test-env [4 env-config peer-config]]
       (ensure-database! username password subname db-name)
-      (pipe (spool words) in true)
+      (pipe (to-chan words) in true)
       (onyx.test-helper/validate-enough-peers! test-env job)
       (->> (:job-id (onyx.api/submit-job peer-config job))
            (onyx.api/await-job-completion peer-config))
