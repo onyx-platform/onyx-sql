@@ -40,8 +40,7 @@
     (-> base-job
         (add-task (sql/partition-keys :partition-keys (merge {:sql/id :id
                                                               :sql/columns [:name]
-                                                              :sql/rows-per-segment 2
-                                                              :onyx/max-pending 10000}
+                                                              :sql/rows-per-segment 2}
                                                              sql-settings
                                                              batch-settings)))
         (add-task (sql/read-rows :read-rows (merge {:sql/id :id}
@@ -112,5 +111,5 @@
       (ensure-database! username password subname db-name)
       (onyx.test-helper/validate-enough-peers! test-env job)
       (onyx.api/submit-job peer-config job)
-      (is (= (sort (map :name (butlast (take-segments! persist))))
+      (is (= (sort (map :name (butlast (take-segments! persist 10000))))
              (sort (mapv str (range 50))))))))

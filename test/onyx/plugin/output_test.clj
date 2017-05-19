@@ -14,7 +14,7 @@
              [core-async :as ca]]
             [onyx.plugin
              [sql]
-             [core-async :refer [take-segments! get-core-async-channels]]])
+             [core-async :refer [get-core-async-channels]]])
   (:import [com.mchange.v2.c3p0 ComboPooledDataSource]))
 
 (defn build-job [db-user db-pass db-sub-base db-name batch-size batch-timeout]
