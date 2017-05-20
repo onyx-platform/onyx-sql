@@ -76,10 +76,6 @@
      {:sql/lower-bound n-min
       :sql/upper-bound n-max}]))
 
-
-(defn update-partition [content acked]
-  (dissoc content acked))
-
 (defn inject-partition-keys
   [table-partitioner event lifecycle]
   {:sql/table-partitioner table-partitioner})
@@ -105,11 +101,9 @@
 
   p/Checkpointed
   (checkpoint [this]
-    (println "checkpointing, offset = " (pr-str @offset))
     @offset)
 
   (recover! [this replica-version checkpoint]
-    (println "partitioner recovering, checkpoint: " (pr-str checkpoint))
     (vreset! completed? false)
     (if (nil? checkpoint)
       (do
@@ -127,7 +121,6 @@
     (if-let [seg (first @rst)]
       (do (vswap! rst rest)
           (vswap! offset inc)
-          (println "emitting partition, offset = " @offset ", seg = " (pr-str seg))
           seg)
       (do (vreset! completed? true)
           nil))))
@@ -158,12 +151,8 @@
                  :from [table]
                  :where [:and
                          [:>= id low]
-                         [:<= id high]]}
-
-        results (jdbc/query pool (sql/format sql-map))]
-    (println "emitting results: " (pr-str results))
-    results
-    ))
+                         [:<= id high]]}]
+    (jdbc/query pool (sql/format sql-map))))
 
 (defrecord SqlWriter [pool table]
   p/Plugin
@@ -196,7 +185,7 @@
     (doseq [msg (mapcat :leaves (:tree results))]
       (jdbc/with-db-transaction
         [conn pool]
-        (doseq [row (:rows (:message msg))]
+        (doseq [row (:rows msg)]
           (jdbc/insert! conn table row))))
     true))
 
@@ -234,12 +223,12 @@
     true)
 
   (write-batch
-    [_ {:keys [onyx.core/results onyx.core/task-map sql/pool]} replica _]
+    [_ {:keys [onyx.core/results]} replica _]
     (doseq [msg (mapcat :leaves (:tree results))]
       (jdbc/with-db-transaction
         [conn pool]
-        (doseq [row (:rows (:message msg))]
-          (jdbc/update! conn (:sql/table task-map) row (sql-dsl/where (:where (:message msg)))))))
+        (doseq [row (:rows msg)]
+          (jdbc/update! conn table row (sql-dsl/where (:where msg))))))
     true))
 
 (defn upsert-rows [pipeline-data]
