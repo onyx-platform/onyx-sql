@@ -84,7 +84,7 @@
                                              :sql/rows-per-segment rows-per-segment}
                                             task-opts))))
 
-(def SqlReadRowsTaskMap
+(def SqlReaderTaskMap
   {:sql/id s/Keyword
    :sql/classname s/Str
    :sql/subprotocol s/Str
@@ -103,7 +103,7 @@
                             opts)
            :lifecycles [{:lifecycle/task task-name
                          :lifecycle/calls :onyx.plugin.sql/read-rows-calls}]}
-    :schema {:task-map SqlReadRowsTaskMap}})
+    :schema {:task-map SqlReaderTaskMap}})
   ([task-name :- s/Keyword
     classname :- s/Str
     subprotocol :- s/Str
@@ -122,7 +122,7 @@
                                 :sql/id id}
                                task-opts))))
 
-(def SqlWriteRowsTaskMap
+(def SqlWriterTaskMap
   {:sql/classname s/Str
    :sql/subprotocol s/Str
    :sql/subname s/Str
@@ -138,10 +138,8 @@
                              :onyx/type :output
                              :onyx/medium :sql
                              :onyx/doc "Writes segments from the :rows keys to the SQL database"}
-                            opts)
-           :lifecycles [{:lifecycle/task task-name
-                         :lifecycle/calls :onyx.plugin.sql/write-rows-calls}]}
-    :schema {:task-map SqlWriteRowsTaskMap}})
+                            opts)}
+    :schema {:task-map SqlWriterTaskMap}})
   ([task-name :- s/Keyword
     classname :- s/Str
     subprotocol :- s/Str
@@ -158,7 +156,7 @@
                                  :sql/table table}
                                 task-opts))))
 
-(def SqlUpsertRowsTaskMap
+(def SqlUpserterTaskMap
   {:sql/classname s/Str
    :sql/subprotocol s/Str
    :sql/subname s/Str
@@ -174,10 +172,8 @@
                              :onyx/type :output
                              :onyx/medium :sql
                              :onyx/doc "Writes segments from the :rows keys to the SQL database based on :where key"}
-                            opts)
-           :lifecycles [{:lifecycle/task task-name
-                         :lifecycle/calls :onyx.plugin.sql/upsert-rows-calls}]}
-    :schema {:task-map SqlUpsertRowsTaskMap}})
+                            opts)}
+    :schema {:task-map SqlUpserterTaskMap}})
   ([task-name :- s/Keyword
     classname :- s/Str
     subprotocol :- s/Str
