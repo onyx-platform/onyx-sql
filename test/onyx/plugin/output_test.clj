@@ -5,7 +5,7 @@
              [io :as io]
              [jdbc :as jdbc]]
             [clojure.test :refer [deftest is]]
-            [clojure.core.async :refer [pipe to-chan]]
+            [clojure.core.async :refer [pipe] :as async]
             [onyx api
              [job :refer [add-task]]
              [test-helper :refer [with-test-env]]]
@@ -16,6 +16,19 @@
              [sql]
              [core-async :refer [get-core-async-channels]]])
   (:import [com.mchange.v2.c3p0 ComboPooledDataSource]))
+
+(defn spool
+  ([s c]
+     (async/go
+      (loop [[f & r] s]
+        (if f
+          (do
+            (async/>! c f)
+            (recur r))
+          (async/close! c))))
+     c)
+  ([s]
+     (spool s (async/chan))))
 
 (defn build-job [db-user db-pass db-sub-base db-name batch-size batch-timeout]
   (let [batch-settings {:onyx/batch-size batch-size :onyx/batch-timeout batch-timeout}
@@ -82,14 +95,12 @@
               [:id :int "PRIMARY KEY AUTO_INCREMENT"]
               [:word "VARCHAR(32)"])))))
 
-                                        ;(def db-name (or (env :test-db-name) "onyx_output_test"))
 (def words
   [{:word "Cat"}
    {:word "Orange"}
    {:word "Pan"}
    {:word "Door"}
-   {:word "Surf board"}
-   :done])
+   {:word "Surf board"}])
 
 (deftest sql-output-test
   (let [{:keys [env-config peer-config sql-config]} (read-config
@@ -105,9 +116,9 @@
                      :password password})]
     (with-test-env [test-env [4 env-config peer-config]]
       (ensure-database! username password subname db-name)
-      (pipe (to-chan words) in true)
+      (pipe (spool words) in true)
       (onyx.test-helper/validate-enough-peers! test-env job)
       (->> (:job-id (onyx.api/submit-job peer-config job))
            (onyx.api/await-job-completion peer-config))
       (is (= (jdbc/query cpool (honey/format {:select [:*] :from [:words]}))
-             (map-indexed (fn [k x] (assoc x :id (inc k))) (butlast words)))))))
+             (map-indexed (fn [k x] (assoc x :id (inc k))) words))))))

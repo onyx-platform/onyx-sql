@@ -6,7 +6,7 @@
              [io :as io]
              [jdbc :as jdbc]]
             [clojure.test :refer [deftest is]]
-            [clojure.core.async :refer [pipe to-chan]]
+            [clojure.core.async :refer [pipe] :as async]
             [onyx api
              [job :refer [add-task]]
              [test-helper :refer [with-test-env]]]
@@ -17,6 +17,19 @@
              [sql]
              [core-async :refer [get-core-async-channels]]])
   (:import [com.mchange.v2.c3p0 ComboPooledDataSource]))
+
+(defn spool
+  ([s c]
+     (async/go
+      (loop [[f & r] s]
+        (if f
+          (do
+            (async/>! c f)
+            (recur r))
+          (async/close! c))))
+     c)
+  ([s]
+     (spool s (async/chan))))
 
 (defn build-job [db-user db-pass db-sub-base db-name batch-size batch-timeout]
   (let [batch-settings {:onyx/batch-size batch-size :onyx/batch-timeout batch-timeout}
@@ -46,8 +59,6 @@
 (defn transform [{:keys [id word] :as segment}]
   {:rows [{:word (str word "!")}] :where {:id id}})
 
-#_(def db-name (or (env :test-db-name) "onyx_output_update_test"))
-
 (defn pool [spec]
   {:datasource
    (doto (ComboPooledDataSource.)
@@ -63,8 +74,7 @@
    {:id 2 :word "Orange"}
    {:id 3 :word "Pan"}
    {:id 4 :word "Door"}
-   {:id 5 :word "Surf board"}
-   :done])
+   {:id 5 :word "Surf board"}])
 
 (defn ensure-database! [db-user db-pass db-sub-base db-name]
   (let [db-spec {:classname "com.mysql.jdbc.Driver"
@@ -85,15 +95,14 @@
                  :user db-user
                  :password db-pass}
         cpool (pool db-spec)
-        values (mapv str (range 5000))
-        truncated-words (butlast words)]
+        values (mapv str (range 5000))]
     (jdbc/execute!
      cpool
      (vector (jdbc/create-table-ddl
               :words
               [:id :int]
               [:word "VARCHAR(32)"])))
-    (doseq [word truncated-words]
+    (doseq [word words]
       (jdbc/insert! cpool :words word))))
 
 (defn transform-word
@@ -114,9 +123,9 @@
                      :password password})]
     (with-test-env [test-env [4 env-config peer-config]]
       (ensure-database! username password subname db-name)
-      (pipe (to-chan words) in true)
+      (pipe (spool words) in true)
       (onyx.test-helper/validate-enough-peers! test-env job)
       (->> (:job-id (onyx.api/submit-job peer-config job))
            (onyx.api/await-job-completion peer-config))
       (is (= (jdbc/query cpool (honey/format {:select [:*] :from [:words]}))
-             (map transform-word (butlast words)))))))
+             (map transform-word words))))))
