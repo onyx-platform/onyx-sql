@@ -55,13 +55,11 @@
      (Thread/sleep 7000)
      (when (= (swap! batch-num inc) 2)
        (do
-         (println "throwing exception!")
          (throw (ex-info "Restartable" {:restartable? true}))))
      {})
    :lifecycle/handle-exception (constantly :restart)})
 
 (defn capitalize [segment]
-  (println "capitalizing: " (pr-str segment))
   (update-in segment [:name] clojure.string/upper-case))
 
 (defn pool [spec]
@@ -113,13 +111,7 @@
     (with-test-env [test-env [4 env-config peer-config]]
       (ensure-database! username password subname db-name)
       (onyx.test-helper/validate-enough-peers! test-env job)
-
-      (println "submitting job, waiting completion...")
-
       (->> (:job-id (onyx.api/submit-job peer-config job))
            (onyx.api/await-job-completion peer-config))
-
-      (println "job completed!")
-
-      (is (= (sort (map :name (butlast (take-segments! persist))))
+      (is (= (sort (map :name (take-segments! persist 10000)))
              (sort (mapv str (range 50))))))))
