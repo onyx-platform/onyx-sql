@@ -32,64 +32,54 @@
                  :password (:sql/password task-map)}]
     (create-pool db-spec)))
 
+; (defn partition-table-by-uuid [{:keys [onyx.core/task-map sql/pool] :as event}]
+;   (let [table (name (:sql/table task-map))
+;         id-col (name (:sql/id task-map))
+;         n-min (:sql/lower-bound task-map)
+;         n-min (util/bytes-to-bigint n-min)
+;         n-max (:sql/upper-bound task-map)
+;         n-max (util/bytes-to-bigint n-max)
+;         count (:count (first (jdbc/query pool (vector (format "select count(*) as count from %s" table)))))
+;         steps-num (/ count (:sql/rows-per-segment task-map))
+;         step (bigint (/ (- n-max n-min) steps-num))
+;         ranges (partition-all 2 1 (range n-min n-max step))
+;         columns (or (:sql/columns task-map) [:*])]
+;     (doall (map (fn [[l h]]
+;                   {:low (util/bigint-to-bytes l)
+;                    :high (util/bigint-to-bytes (dec (or h (inc n-max))))
+;                    :table (:sql/table task-map)
+;                    :id (:sql/id task-map)
+;                    :columns columns})
+;                 ranges))))
 
-(defn partition-table-by-uuid [{:keys [onyx.core/task-map sql/pool] :as event}]
+(defn partition-table [{:keys [onyx.core/task-map onyx.core/slot-id] :as event} table id colums pool]
   (let [table (name (:sql/table task-map))
         id-col (name (:sql/id task-map))
-        n-min (or (:sql/lower-bound task-map)
-                  (:min (first (jdbc/query pool (vector (format "select min(%s) as min from %s" id-col table))))))
-        n-min (util/bytes-to-bigint n-min)
-        n-max (or (:sql/upper-bound task-map)
-                  (:max (first (jdbc/query pool (vector (format "select max(%s) as max from %s" id-col table))))))
-        n-max (util/bytes-to-bigint n-max)
-        count (:count (first (jdbc/query pool (vector (format "select count(*) as count from %s" table)))))
-        steps-num (/ count (:sql/rows-per-segment task-map))
-        step (bigint (/ (- n-max n-min) steps-num))
-        ranges (partition-all 2 1 (range n-min n-max step))
-        columns (or (:sql/columns task-map) [:*])]
-    [(map (fn [[l h]]
-            {:low (util/bigint-to-bytes l)
-             :high (util/bigint-to-bytes (dec (or h (inc n-max))))
-             :table (:sql/table task-map)
-             :id (:sql/id task-map)
-             :columns columns})
-          ranges)
-     {:sql/lower-bound n-min
-      :sql/upper-bound n-max}]))
+        n-min (:sql/lower-bound task-map) 
+        n-max (:sql/upper-bound task-map)
+        ranges (partition-all 2 1 (range n-min n-max (:sql/rows-per-segment task-map)))]
+    ;; Partition up the partitions over all n-peers.
+    (take-nth (:onyx/n-peers task-map)
+              (drop slot-id 
+                    (map (fn [[l h]]
+                           [l (dec (or h (inc n-max)))])
+                         ranges)))))
 
-(defn partition-table [{:keys [onyx.core/task-map sql/pool] :as event}]
-  (let [table (name (:sql/table task-map))
-        id-col (name (:sql/id task-map))
-        n-min (or (:sql/lower-bound task-map)
-                  (:min (first (jdbc/query pool (vector (format "select min(%s) as min from %s" id-col table))))))
-        n-max (or (:sql/upper-bound task-map)
-                  (:max (first (jdbc/query pool (vector (format "select max(%s) as max from %s" id-col table))))))
-        ranges (partition-all 2 1 (range n-min n-max (:sql/rows-per-segment task-map)))
-        columns (or (:sql/columns task-map) [:*])]
-    [(map (fn [[l h]]
-            {:low l
-             :high (dec (or h (inc n-max)))
-             :table (:sql/table task-map)
-             :id (:sql/id task-map)
-             :columns columns})
-          ranges)
-     {:sql/lower-bound n-min
-      :sql/upper-bound n-max}]))
+(defn read-rows [pool table id columns [low high]]
+  (let [sql-map {:select columns
+                 :from [table]
+                 :where [:and
+                         [:>= id low]
+                         [:<= id high]]}]
+    (jdbc/query pool (sql/format sql-map))))
 
-(defn inject-partition-keys
-  [table-partitioner event lifecycle]
-  {:sql/table-partitioner table-partitioner})
-
-(defn close-partition-keys
-  [{:keys [sql/pool] :as event} lifecycle]
-  {})
-
-(defrecord SqlPartitioner [partitions rst completed? offset]
+(defrecord SqlPartitioner [pool table id columns event rst completed? offset]
   p/Plugin
   (start [this event]
     this)
 
   (stop [this event]
+    (.close (:datasource pool))
     this)
 
   p/BarrierSynchronization
@@ -101,58 +91,39 @@
 
   p/Checkpointed
   (checkpoint [this]
-    @offset)
+    @rst)
 
   (recover! [this replica-version checkpoint]
     (vreset! completed? false)
     (if (nil? checkpoint)
-      (do
-        (vreset! rst partitions)
-        (vreset! offset 0))
-      (do
-        (info "ABS plugin, recover dropping:" checkpoint (take checkpoint partitions))
-        (vreset! rst (drop checkpoint partitions))
-        (vreset! offset checkpoint))))
+      (vreset! rst (partition-table event table id columns pool))
+      (vreset! rst checkpoint)))
 
   (checkpointed! [this epoch])
 
   p/Input
   (poll! [this segment]
-    (if-let [seg (first @rst)]
+    (if-let [part (first @rst)]
       (do (vswap! rst rest)
-          (vswap! offset inc)
-          seg)
+          (read-rows pool table id columns part))
       (do (vreset! completed? true)
           nil))))
 
-(defn partition-keys [pipeline-data]
-  (let [task-map (:onyx.core/task-map pipeline-data)
-        table (:sql/table task-map)
-        pool (task->pool task-map)
-        table-partitioner (:sql/table-partitioner pipeline-data)
-        [partitions _] (table-partitioner (assoc pipeline-data :sql/pool pool))]
-    (map->SqlPartitioner {:partitions partitions
+(defn partition-keys [{:keys [onyx.core/task-map] :as event}]
+  (let [table (:sql/table task-map)
+        id (:sql/id task-map)] 
+    (when-not (:sql/lower-bound task-map)
+      (throw (Exception. "As of Onyx 0.10.0, :sql/lower-bound must be set on onyx-sql input tasks."))) 
+    (when-not (:sql/upper-bound task-map)
+      (throw (Exception. "As of Onyx 0.10.0, :sql/upper-bound must be set on onyx-sql input tasks.")))
+    (map->SqlPartitioner {:pool (task->pool task-map)
+                          :table table
+                          :id id
+                          :columns (or (:sql/columns task-map) [:*])
+                          :event event
                           :rst (volatile! nil)
                           :completed? (volatile! false)
                           :offset (volatile! nil)})))
-
-(defn inject-read-rows
-  [{:keys [onyx.core/task-map] :as event} lifecycle]
-  (let [pool (task->pool task-map)]
-    {:sql/pool pool
-     :onyx.core/params [pool]}))
-
-(defn close-read-rows
-  [{:keys [sql/pool] :as event} lifecycle]
-  {})
-
-(defn read-rows [pool {:keys [table id low high columns] :as segment}]
-  (let [sql-map {:select columns
-                 :from [table]
-                 :where [:and
-                         [:>= id low]
-                         [:<= id high]]}]
-    (jdbc/query pool (sql/format sql-map))))
 
 (defrecord SqlWriter [pool table]
   p/Plugin
@@ -254,16 +225,10 @@
   {})
 
 (def partition-keys-calls
-  {:lifecycle/before-task-start (partial inject-partition-keys partition-table)
-   :lifecycle/after-task-stop close-partition-keys})
+  {})
 
 (def partition-uuid-calls
-  {:lifecycle/before-task-start (partial inject-partition-keys partition-table-by-uuid)
-   :lifecycle/after-task-stop close-partition-keys})
-
-(def read-rows-calls
-  {:lifecycle/before-task-start inject-read-rows
-   :lifecycle/after-task-stop close-read-rows})
+  {})
 
 (def write-rows-calls
   {:lifecycle/before-task-start inject-write-rows
