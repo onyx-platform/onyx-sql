@@ -26,7 +26,7 @@
                                                 :test true}}
  :sql-config
  {:sql/db-name #env [TEST_DB_NAME "onyx_input_test"] ;;maybe use this?
-  :sql/username #env [TEST_DB_USER "root"]
+  :sql/user #env [TEST_DB_USER "root"]
   :sql/password ""
   :sql/subname #cond {;:default "mysql"
                       :test "//127.0.0.1:3306"}  ;;change me
