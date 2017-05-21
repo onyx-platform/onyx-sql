@@ -24,6 +24,10 @@
              {:type :string
               :doc "The password to authenticate with."}
 
+             :sql/db-name
+             {:type :string
+              :doc "The database to connect to."}
+
              :sql/table
              {:type :keyword
               :doc "The table to read/write from/to."}
@@ -75,6 +79,10 @@
              {:type :string
               :doc "The password to authenticate with."}
 
+             :sql/db-name
+             {:type :string
+              :doc "The database to connect to."}
+
              :sql/table
              {:type :keyword
               :doc "The table to read/write from/to."}
@@ -105,6 +113,10 @@
              {:type :string
               :doc "The password to authenticate with."}
 
+             :sql/db-name
+             {:type :string
+              :doc "The database to connect to."}
+
              :sql/table
              {:type :keyword
               :doc "The table to read/write from/to."}}}
@@ -131,6 +143,10 @@
              {:type :string
               :doc "The password to authenticate with."}
 
+             :sql/db-name
+             {:type :string
+              :doc "The database to connect to."}
+
              :sql/table
              {:type :keyword
               :doc "The table to read/write from/to."}}}
@@ -156,6 +172,10 @@
              :sql/password
              {:type :string
               :doc "The password to authenticate with."}
+
+             :sql/db-name
+             {:type :string
+              :doc "The database to connect to."}
 
              :sql/table
              {:type :keyword
@@ -194,6 +214,7 @@
      :sql/subprotocol
      :sql/user
      :sql/password
+     :sql/db-name
      :sql/table
      :sql/id
      :sql/lower-bound
@@ -207,6 +228,7 @@
      :sql/subprotocol
      :sql/user
      :sql/password
+     :sql/db-name
      :sql/table
      :sql/id]
 
@@ -216,6 +238,7 @@
      :sql/subprotocol
      :sql/user
      :sql/password
+     :sql/db-name
      :sql/table]
 
     :onyx.plugin.sql/upsert-rows
@@ -224,6 +247,7 @@
      :sql/subprotocol
      :sql/user
      :sql/password
+     :sql/db-name
      :sql/table]
 
     :onyx.plugin.sql/write-batch
@@ -232,4 +256,5 @@
      :sql/subprotocol
      :sql/user
      :sql/password
+     :sql/db-name
      :sql/table]}})
