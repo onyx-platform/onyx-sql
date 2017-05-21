@@ -18,7 +18,7 @@
   {:datasource
    (doto (ComboPooledDataSource.)
      (.setDriverClass (:classname spec))
-     (.setJdbcUrl (str "jdbc:" (:subprotocol spec) ":" (:subname spec)))
+     (.setJdbcUrl (str "jdbc:" (:subprotocol spec) ":" (:subname spec) "/" (:db-name spec)))
      (.setUser (:user spec))
      (.setPassword (:password spec))
      (.setMaxIdleTimeExcessConnections (* 30 60))
@@ -29,7 +29,8 @@
                  :subprotocol (:sql/subprotocol task-map)
                  :subname (:sql/subname task-map)
                  :user (:sql/user task-map)
-                 :password (:sql/password task-map)}]
+                 :password (:sql/password task-map)
+                 :db-name (:sql/db-name task-map)}]
     (create-pool db-spec)))
 
 ; (defn partition-table-by-uuid [{:keys [onyx.core/task-map sql/pool] :as event}]
