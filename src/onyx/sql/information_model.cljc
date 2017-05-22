@@ -38,12 +38,10 @@
 
              :sql/lower-bound
              {:type :integer
-              :optional? true
               :doc "Overrides calculation of min value from the id column."}
 
              :sql/upper-bound
              {:type :integer
-              :optional? true
               :doc "Overrides calculation of max value from the id column."}
 
              :sql/rows-per-segment
