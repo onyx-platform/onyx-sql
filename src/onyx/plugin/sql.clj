@@ -18,7 +18,7 @@
   {:datasource
    (doto (ComboPooledDataSource.)
      (.setDriverClass (:classname spec))
-     (.setJdbcUrl (str "jdbc:" (:subprotocol spec) ":" (:subname spec)))
+     (.setJdbcUrl (str "jdbc:" (:subprotocol spec) ":" (:subname spec) "/" (:db-name spec)))
      (.setUser (:user spec))
      (.setPassword (:password spec))
      (.setMaxIdleTimeExcessConnections (* 30 60))
@@ -29,7 +29,8 @@
                  :subprotocol (:sql/subprotocol task-map)
                  :subname (:sql/subname task-map)
                  :user (:sql/user task-map)
-                 :password (:sql/password task-map)}]
+                 :password (:sql/password task-map)
+                 :db-name (:sql/db-name task-map)}]
     (create-pool db-spec)))
 
 ; (defn partition-table-by-uuid [{:keys [onyx.core/task-map sql/pool] :as event}]
@@ -55,12 +56,12 @@
 (defn partition-table [{:keys [onyx.core/task-map onyx.core/slot-id] :as event} table id colums pool]
   (let [table (name (:sql/table task-map))
         id-col (name (:sql/id task-map))
-        n-min (:sql/lower-bound task-map) 
+        n-min (:sql/lower-bound task-map)
         n-max (:sql/upper-bound task-map)
         ranges (partition-all 2 1 (range n-min n-max (:sql/rows-per-segment task-map)))]
     ;; Partition up the partitions over all n-peers.
     (take-nth (:onyx/n-peers task-map)
-              (drop slot-id 
+              (drop slot-id
                     (map (fn [[l h]]
                            [l (dec (or h (inc n-max)))])
                          ranges)))))
@@ -111,9 +112,9 @@
 
 (defn partition-keys [{:keys [onyx.core/task-map] :as event}]
   (let [table (:sql/table task-map)
-        id (:sql/id task-map)] 
+        id (:sql/id task-map)]
     (when-not (:sql/lower-bound task-map)
-      (throw (Exception. "As of Onyx 0.10.0, :sql/lower-bound must be set on onyx-sql input tasks."))) 
+      (throw (Exception. "As of Onyx 0.10.0, :sql/lower-bound must be set on onyx-sql input tasks.")))
     (when-not (:sql/upper-bound task-map)
       (throw (Exception. "As of Onyx 0.10.0, :sql/upper-bound must be set on onyx-sql input tasks.")))
     (map->SqlPartitioner {:pool (task->pool task-map)
@@ -207,7 +208,7 @@
   (let [task-map (:onyx.core/task-map pipeline-data)
         table (:sql/table task-map)
         pool (task->pool task-map)]
-    (->SqlWriteBatch pool table)))
+    (->SqlWriter pool table)))
 
 (defn upsert-rows [pipeline-data]
   (let [task-map (:onyx.core/task-map pipeline-data)

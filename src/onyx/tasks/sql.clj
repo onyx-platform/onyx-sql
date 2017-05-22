@@ -14,6 +14,7 @@
    :sql/subname s/Str
    :sql/user s/Str
    :sql/password s/Str
+   :sql/db-name s/Str
    :sql/table s/Keyword
    (os/restricted-ns :sql) s/Any})
 
@@ -37,6 +38,7 @@
     subname :- s/Str
     user :- s/Str
     password :- s/Str
+    db-name :- s/Str
     table :- s/Keyword
     id :- s/Keyword
     task-opts :- {s/Any s/Any}]
@@ -45,6 +47,7 @@
                                      :sql/subname subname
                                      :sql/user user
                                      :sql/password password
+                                     :sql/db-name db-name
                                      :sql/table table
                                      :sql/id id}
                                     task-opts))))
@@ -68,6 +71,7 @@
     subname :- s/Str
     user :- s/Str
     password :- s/Str
+    db-name :- s/Str
     table :- s/Keyword
     id :- s/Keyword
     columns :- [s/Keyword]
@@ -78,6 +82,7 @@
                                              :sql/subname subname
                                              :sql/user user
                                              :sql/password password
+                                             :sql/db-name db-name
                                              :sql/table table
                                              :sql/id id
                                              :sql/columns columns
@@ -91,6 +96,7 @@
    :sql/subname s/Str
    :sql/user s/Str
    :sql/password s/Str
+   :sql/db-name s/Str
    :sql/table s/Keyword
    (os/restricted-ns :sql) s/Any})
 
@@ -110,6 +116,7 @@
     subname :- s/Str
     user :- s/Str
     password :- s/Str
+    db-name :- s/Str
     table :- s/Keyword
     id :- s/Keyword
     task-opts :- {s/Any s/Any}]
@@ -118,6 +125,7 @@
                                 :sql/subname subname
                                 :sql/user user
                                 :sql/password password
+                                :sql/db-name db-name
                                 :sql/table table
                                 :sql/id id}
                                task-opts))))
@@ -128,6 +136,7 @@
    :sql/subname s/Str
    :sql/user s/Str
    :sql/password s/Str
+   :sql/db-name s/Str
    :sql/table s/Keyword
    (os/restricted-ns :sql) s/Any})
 
@@ -146,6 +155,7 @@
     subname :- s/Str
     user :- s/Str
     password :- s/Str
+    db-name :- s/Str
     table :- s/Keyword
     task-opts :- {s/Any s/Any}]
    (write-rows task-name (merge {:sql/classname classname
@@ -153,6 +163,7 @@
                                  :sql/subname subname
                                  :sql/user user
                                  :sql/password password
+                                 :sql/db-name db-name
                                  :sql/table table}
                                 task-opts))))
 
@@ -162,6 +173,7 @@
    :sql/subname s/Str
    :sql/user s/Str
    :sql/password s/Str
+   :sql/db-name s/Str
    :sql/table s/Keyword
    (os/restricted-ns :sql) s/Any})
 
@@ -180,6 +192,7 @@
     subname :- s/Str
     user :- s/Str
     password :- s/Str
+    db-name :- s/Str
     table :- s/Keyword
     task-opts :- {s/Any s/Any}]
    (upsert-rows task-name (merge {:sql/classname classname
@@ -187,5 +200,6 @@
                                   :sql/subname subname
                                   :sql/user user
                                   :sql/password password
+                                  :sql/db-name db-name
                                   :sql/table table}
                                  task-opts))))
