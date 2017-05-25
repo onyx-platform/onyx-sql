@@ -9,12 +9,12 @@
    (s/optional-key :sql/lower-bound) (s/cond-pre s/Uuid s/Num)
    (s/optional-key :sql/upper-bound) (s/cond-pre s/Uuid s/Num)
    (s/optional-key :sql/read-buffer) s/Num
+   (s/optional-key :sql/db-name) s/Str
    :sql/classname s/Str
    :sql/subprotocol s/Str
    :sql/subname s/Str
    :sql/user s/Str
    :sql/password s/Str
-   :sql/db-name s/Str
    :sql/table s/Keyword
    (os/restricted-ns :sql) s/Any})
 
@@ -96,8 +96,8 @@
    :sql/subname s/Str
    :sql/user s/Str
    :sql/password s/Str
-   :sql/db-name s/Str
    :sql/table s/Keyword
+   (s/optional-key :sql/db-name) s/Str
    (os/restricted-ns :sql) s/Any})
 
 (s/defn ^:always-validate read-rows
@@ -136,8 +136,8 @@
    :sql/subname s/Str
    :sql/user s/Str
    :sql/password s/Str
-   :sql/db-name s/Str
    :sql/table s/Keyword
+   (s/optional-key :sql/db-name) s/Str
    (os/restricted-ns :sql) s/Any})
 
 (s/defn ^:always-validate write-rows
