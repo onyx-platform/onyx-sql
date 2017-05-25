@@ -71,6 +71,7 @@
 
              :sql/user
              {:type :string
+              :optional? true
               :doc "The user to authenticate with."}
 
              :sql/password
@@ -79,6 +80,7 @@
 
              :sql/db-name
              {:type :string
+              :optional? true
               :doc "The database to connect to."}
 
              :sql/table
@@ -105,6 +107,7 @@
 
              :sql/user
              {:type :string
+              :optional? true
               :doc "The user to authenticate with."}
 
              :sql/password
@@ -113,6 +116,7 @@
 
              :sql/db-name
              {:type :string
+              :optional? true
               :doc "The database to connect to."}
 
              :sql/table
