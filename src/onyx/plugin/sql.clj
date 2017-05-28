@@ -18,7 +18,9 @@
            [java.sql Connection]
            [java.io ByteArrayInputStream]
            [org.postgresql.jdbc PgConnection]
-           [org.postgresql.copy CopyManager]))
+           [org.postgresql.copy CopyManager]
+           [org.postgresql.util PGobject]
+           ))
 
 (defn create-pool [spec]
   {:datasource
@@ -135,9 +137,21 @@
 (defn- coerce-copy-row
   "Coerces a row map object into a format that's understood by the PostgreSQL COPY TEXT format."
   [cols row]
-  (let [xform-null (fn [x]
+  (let [xform-escape (fn [x]
+                       (cond
+                         (string? x)
+                         (str/escape x {\\ "\\\\"})
+
+                         (= (type x) PGobject)
+                         (str/escape (.toString (cast PGobject x)) {\\ "\\\\"})
+
+                         :esle
+                         x))
+        xform-null (fn [x]
                      (if (nil? x) "\\N" x))
+
         xform (comp xform-null
+                    xform-escape
                     jdbc/sql-value
                     #(% row))]
         (str (str/join "\t" (map xform cols)))))
