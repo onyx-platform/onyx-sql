@@ -1,5 +1,6 @@
 (ns onyx.plugin.sql
   (:require [clojure.java.jdbc :as jdbc]
+            [clojure.string :as str]
             [clojure.pprint :as pp]
             [clojure.core.async :refer [chan >! >!! <!! close! go timeout alts!! go-loop]]
             [onyx.types :as t]
@@ -11,8 +12,13 @@
             [onyx.plugin.protocols :as p]
             [taoensso.timbre :refer [info error debug fatal]]
             [honeysql.core :as sql]
-            [java-jdbc.sql :as sql-dsl])
-  (:import [com.mchange.v2.c3p0 ComboPooledDataSource]))
+            [java-jdbc.sql :as sql-dsl]
+            [clojure.java.io :as io])
+  (:import [com.mchange.v2.c3p0 ComboPooledDataSource]
+           [java.sql Connection]
+           [java.io ByteArrayInputStream]
+           [org.postgresql.jdbc PgConnection]
+           [org.postgresql.copy CopyManager]))
 
 (defn create-pool [spec]
   {:datasource
@@ -126,6 +132,16 @@
                           :completed? (volatile! false)
                           :offset (volatile! nil)})))
 
+(defn- coerce-copy-row
+  "Coerces a row map object into a format that's understood by the PostgreSQL COPY TEXT format."
+  [cols row]
+  (let [xform-null (fn [x]
+                     (if (nil? x) "\\N" x))
+        xform (comp xform-null
+                    jdbc/sql-value
+                    #(% row))]
+        (str (str/join "\t" (map xform cols)))))
+
 (defrecord SqlWriter [pool table]
   p/Plugin
   (start [this event]
@@ -154,10 +170,25 @@
     true)
 
   (write-batch [this {:keys [onyx.core/results]} replica messenger]
+    "Uses PostgreSQL CopyMan to quickly load batches of rows into our destination table. Transaction
+    is guaranteed to be committed after function returns."
+
     (doseq [msg (mapcat :leaves (:tree results))]
       (jdbc/with-db-transaction
         [conn pool]
-        (jdbc/insert-multi! conn table (:rows msg))))
+        (println "now inserting rows")
+        (let [cols [:id :created_at :user_id :data]
+              pgconn (.unwrap (:connection conn) PgConnection)
+              copyman (.getCopyAPI pgconn)]
+
+          (let [copy-str (->> (:rows msg)
+                              (map (partial coerce-copy-row cols))
+                              (str/join "\n"))
+                _ (println "copy-str = " (pr-str copy-str))
+                bytestream (ByteArrayInputStream. (.getBytes copy-str))
+                count (.copyIn copyman (str "COPY " table " FROM STDIN") bytestream)]
+            (println "wrote " (pr-str count) " rows")
+            ))))
     true))
 
 (defn write-rows [pipeline-data]
