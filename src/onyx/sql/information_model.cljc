@@ -121,7 +121,17 @@
 
              :sql/table
              {:type :keyword
-              :doc "The table to read/write from/to."}}}
+              :doc "The table to read/write from/to."}
+
+             :sql/copy?
+             {:type :boolean
+              :optional? true
+              :doc "Whether or not to use COPY for batch inserts. Note: currently only supported for PostgreSQL."}
+
+             :sql/copy-columns
+             {:type :vector
+              :optional? true
+              :doc "When copy? is true, describes the order in which the columns are sent to the db."}}}
 
     :onyx.plugin.sql/write-batch
     {:summary "Like `write-rows`, except the entire batch of segments in the lifecycle are written together in one transaction. Thus, each segment is itself a row,and collecting segments together with `:rows` is not required. "
@@ -151,7 +161,15 @@
 
              :sql/table
              {:type :keyword
-              :doc "The table to read/write from/to."}}}
+              :doc "The table to read/write from/to."}
+
+             :sql/copy?
+             {:type :boolean
+              :doc "Whether or not to use COPY for batch inserts. Note: currently only supported for PostgreSQL."}
+
+             :sql/copy-columns
+             {:type :vector
+              :doc "When copy? is true, describes the order in which the columns are sent to the db."}}}
 
     :onyx.plugin.sql/upsert-rows
     {:summary "Upserts segments to a SQL database."
@@ -241,7 +259,9 @@
      :sql/user
      :sql/password
      :sql/db-name
-     :sql/table]
+     :sql/table
+     :sql/copy?
+     :sql/copy-rows]
 
     :onyx.plugin.sql/upsert-rows
     [:sql/classname
@@ -259,4 +279,6 @@
      :sql/user
      :sql/password
      :sql/db-name
-     :sql/table]}})
+     :sql/table
+     :sql/copy?
+     :sql/copy-rows]}})

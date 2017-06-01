@@ -16,11 +16,15 @@
             [clojure.java.io :as io])
   (:import [com.mchange.v2.c3p0 ComboPooledDataSource]
            [java.sql Connection]
-           [java.io ByteArrayInputStream]
-           [org.postgresql.jdbc PgConnection]
-           [org.postgresql.copy CopyManager]
-           [org.postgresql.util PGobject]
-           ))
+           [java.io ByteArrayInputStream]))
+
+(def pgsql-available?
+  (try
+    (import '[org.postgresql.jdbc PgConnection]
+            '[org.postgresql.copy CopyManager]
+            '[org.postgresql.util PGobject])
+    true
+    (catch Throwable _ false)))
 
 (defn create-pool [spec]
   {:datasource
@@ -156,7 +160,24 @@
                     #(% row))]
         (str (str/join "\t" (map xform cols)))))
 
-(defrecord SqlWriter [pool table]
+(defn- pgsql-copy
+  "Uses PostgreSQL CopyMan to quickly load batches of rows into our destination table. Transaction
+   is guaranteed to be committed after function returns."
+  [table cols conn rows]
+
+  (let [pgconn (.unwrap (:connection conn) PgConnection)
+        copyman (.getCopyAPI pgconn)]
+
+    (let [copy-str (->> rows
+                        (map (partial coerce-copy-row cols))
+                        (str/join "\n"))
+          bytestream (ByteArrayInputStream. (.getBytes copy-str))]
+      (.copyIn copyman (str "COPY " table " FROM STDIN") bytestream))))
+
+(defn- jdbc-insert-multi! [table conn rows]
+  (jdbc/insert-multi! conn table rows))
+
+(defrecord SqlWriter [pool insert-fn]
   p/Plugin
   (start [this event]
     this)
@@ -184,32 +205,25 @@
     true)
 
   (write-batch [this {:keys [onyx.core/results]} replica messenger]
-    "Uses PostgreSQL CopyMan to quickly load batches of rows into our destination table. Transaction
-    is guaranteed to be committed after function returns."
 
     (doseq [msg (mapcat :leaves (:tree results))]
       (jdbc/with-db-transaction
         [conn pool]
-        (println "now inserting rows")
-        (let [cols [:id :created_at :user_id :data]
-              pgconn (.unwrap (:connection conn) PgConnection)
-              copyman (.getCopyAPI pgconn)]
 
-          (let [copy-str (->> (:rows msg)
-                              (map (partial coerce-copy-row cols))
-                              (str/join "\n"))
-                _ (println "copy-str = " (pr-str copy-str))
-                bytestream (ByteArrayInputStream. (.getBytes copy-str))
-                count (.copyIn copyman (str "COPY " table " FROM STDIN") bytestream)]
-            (println "wrote " (pr-str count) " rows")
-            ))))
+        (insert-fn conn (:rows msg))))
     true))
 
 (defn write-rows [pipeline-data]
   (let [task-map (:onyx.core/task-map pipeline-data)
         table (:sql/table task-map)
-        pool (task->pool task-map)]
-    (->SqlWriter pool table)))
+        pool (task->pool task-map)
+
+        insert-fn (if (and (:sql/copy? task-map)
+                           pgsql-available?)
+                    (partial pgsql-copy table (:sql/copy-columns task-map))
+                    (partial jdbc-insert-multi! table))]
+
+    (->SqlWriter pool insert-fn)))
 
 (defrecord SqlUpserter [pool table]
     p/Plugin
