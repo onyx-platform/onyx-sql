@@ -21,8 +21,9 @@
 (def pgsql-available?
   (try
     (import '[org.postgresql.jdbc PgConnection]
-            '[org.postgresql.copy CopyManager]
-            '[org.postgresql.util PGobject])
+            '[org.postgresql.util PGobject]
+            '[org.postgresql.copy CopyManager
+                                  PGCopyOutputStream])
     true
     (catch Throwable _ false)))
 
@@ -149,7 +150,7 @@
                          (= (type x) PGobject)
                          (str/escape (.toString (cast PGobject x)) {\\ "\\\\"})
 
-                         :esle
+                         :else
                          x))
         xform-null (fn [x]
                      (if (nil? x) "\\N" x))
@@ -158,7 +159,7 @@
                     xform-escape
                     jdbc/sql-value
                     #(% row))]
-        (str (str/join "\t" (map xform cols)))))
+    (str (str/join "\t" (map xform cols)) "\n")))
 
 (defn- pgsql-copy
   "Uses PostgreSQL CopyMan to quickly load batches of rows into our destination table. Transaction
@@ -166,13 +167,15 @@
   [table cols conn rows]
 
   (let [pgconn (.unwrap (:connection conn) PgConnection)
-        copyman (.getCopyAPI pgconn)]
+        copyman (.getCopyAPI pgconn)
+        copy (.copyIn copyman (str "COPY " table " FROM STDIN"))
+        ostream (PGCopyOutputStream. copy)]
 
-    (let [copy-str (->> rows
-                        (map (partial coerce-copy-row cols))
-                        (str/join "\n"))
-          bytestream (ByteArrayInputStream. (.getBytes copy-str))]
-      (.copyIn copyman (str "COPY " table " FROM STDIN") bytestream))))
+    (doseq [row rows]
+      (let [cbuf (.getBytes (coerce-copy-row cols row) "UTF-8")]
+        (.write ostream cbuf)))
+
+    (.endCopy ostream)))
 
 (defn- jdbc-insert-multi! [table conn rows]
   (jdbc/insert-multi! conn table rows))
