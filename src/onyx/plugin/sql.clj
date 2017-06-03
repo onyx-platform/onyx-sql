@@ -161,6 +161,10 @@
                     jdbc/sql-value)]
     (xform col)))
 
+
+(def ht-byte (.getBytes (str "\t") "UTF-8"))
+(def nl-byte (.getBytes (str "\n") "UTF-8"))
+
 (defn- pgsql-copy
   "Uses PostgreSQL CopyMan to quickly load batches of rows into our destination table. Transaction
    is guaranteed to be committed after function returns."
@@ -179,10 +183,10 @@
           (.write ostream buf)
 
           (when more
-            (.write ostream (.getBytes (str "\t") "UTF-8"))
+            (.write ostream ht-byte)
             (recur more))))
 
-      (.write ostream (.getBytes (str "\n") "UTF-8")))
+      (.write ostream nl-byte))
     (.endCopy ostream)))
 
 (defn- jdbc-insert-multi! [table conn rows]
