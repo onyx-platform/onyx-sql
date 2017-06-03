@@ -13,19 +13,12 @@
             [taoensso.timbre :refer [info error debug fatal]]
             [honeysql.core :as sql]
             [java-jdbc.sql :as sql-dsl]
-            [clojure.java.io :as io])
+            [clojure.java.io :as io]
+
+            [onyx.plugin.pgsql :as pgsql])
   (:import [com.mchange.v2.c3p0 ComboPooledDataSource]
            [java.sql Connection]
            [java.io ByteArrayInputStream]))
-
-(def pgsql-available?
-  (try
-    (import '[org.postgresql.jdbc PgConnection]
-            '[org.postgresql.util PGobject]
-            '[org.postgresql.copy CopyManager
-                                  PGCopyOutputStream])
-    true
-    (catch Throwable _ false)))
 
 (defn create-pool [spec]
   {:datasource
@@ -139,56 +132,6 @@
                           :completed? (volatile! false)
                           :offset (volatile! nil)})))
 
-(defn- column->sql-value
-  "Coerces a column a format that's understood by the PostgreSQL COPY TEXT format."
-  [col]
-  (let [xform-escape (fn [x]
-                       (cond
-                         (string? x)
-                         (str/escape x {\\ "\\\\"})
-
-                         (= (type x) PGobject)
-                         (str/escape (.toString (cast PGobject x)) {\\ "\\\\"})
-
-                         :else
-                         x))
-        xform-null (fn [x]
-                     (if (nil? x) "\\N" x))
-
-        xform (comp str
-                    xform-null
-                    xform-escape
-                    jdbc/sql-value)]
-    (xform col)))
-
-
-(def ht-byte (.getBytes (str "\t") "UTF-8"))
-(def nl-byte (.getBytes (str "\n") "UTF-8"))
-
-(defn- pgsql-copy
-  "Uses PostgreSQL CopyMan to quickly load batches of rows into our destination table. Transaction
-   is guaranteed to be committed after function returns."
-  [table cols conn rows]
-
-  (let [pgconn (.unwrap (:connection conn) PgConnection)
-        copyman (.getCopyAPI pgconn)
-        copy (.copyIn copyman (str "COPY " table " FROM STDIN"))
-        ostream (PGCopyOutputStream. copy)]
-
-    (doseq [row rows]
-      (loop [values (map #(% row) cols)]
-        (let [cur (column->sql-value (first values))
-              more (next values)
-              buf (.getBytes cur "UTF-8")]
-          (.write ostream buf)
-
-          (when more
-            (.write ostream ht-byte)
-            (recur more))))
-
-      (.write ostream nl-byte))
-    (.endCopy ostream)))
-
 (defn- jdbc-insert-multi! [table conn rows]
   (jdbc/insert-multi! conn table rows))
 
@@ -234,8 +177,8 @@
         pool (task->pool task-map)
 
         insert-fn (if (and (:sql/copy? task-map)
-                           pgsql-available?)
-                    (partial pgsql-copy table (:sql/copy-columns task-map))
+                           pgsql/available?)
+                    (partial pgsql/copy table (:sql/copy-columns task-map))
                     (partial jdbc-insert-multi! table))]
 
     (->SqlWriter pool insert-fn)))
