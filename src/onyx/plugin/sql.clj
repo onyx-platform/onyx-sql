@@ -139,9 +139,9 @@
                           :completed? (volatile! false)
                           :offset (volatile! nil)})))
 
-(defn- coerce-copy-row
-  "Coerces a row map object into a format that's understood by the PostgreSQL COPY TEXT format."
-  [cols row]
+(defn- column->sql-value
+  "Coerces a column a format that's understood by the PostgreSQL COPY TEXT format."
+  [col]
   (let [xform-escape (fn [x]
                        (cond
                          (string? x)
@@ -155,11 +155,11 @@
         xform-null (fn [x]
                      (if (nil? x) "\\N" x))
 
-        xform (comp xform-null
+        xform (comp str
+                    xform-null
                     xform-escape
-                    jdbc/sql-value
-                    #(% row))]
-    (str (str/join "\t" (map xform cols)) "\n")))
+                    jdbc/sql-value)]
+    (xform col)))
 
 (defn- pgsql-copy
   "Uses PostgreSQL CopyMan to quickly load batches of rows into our destination table. Transaction
@@ -172,9 +172,17 @@
         ostream (PGCopyOutputStream. copy)]
 
     (doseq [row rows]
-      (let [cbuf (.getBytes (coerce-copy-row cols row) "UTF-8")]
-        (.write ostream cbuf)))
+      (loop [values (map #(% row) cols)]
+        (let [cur (column->sql-value (first values))
+              more (next values)
+              buf (.getBytes cur "UTF-8")]
+          (.write ostream buf)
 
+          (when more
+            (.write ostream (.getBytes (str "\t") "UTF-8"))
+            (recur more))))
+
+      (.write ostream (.getBytes (str "\n") "UTF-8")))
     (.endCopy ostream)))
 
 (defn- jdbc-insert-multi! [table conn rows]
