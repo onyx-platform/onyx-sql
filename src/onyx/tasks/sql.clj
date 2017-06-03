@@ -162,7 +162,6 @@
     copy? :- s/Boolean
     copy-columns :- [s/Keyword]
     task-opts :- {s/Any s/Any}]
-   (println "write-rows, copy? = " (pr-str copy?))
    (write-rows task-name (merge {:sql/classname classname
                                  :sql/subprotocol subprotocol
                                  :sql/subname subname
