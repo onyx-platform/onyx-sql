@@ -220,12 +220,6 @@
           (jdbc/update! conn table row (sql-dsl/where (:where msg))))))
     true))
 
-(defn write-batch [pipeline-data]
-  (let [task-map (:onyx.core/task-map pipeline-data)
-        table (:sql/table task-map)
-        pool (task->pool task-map)]
-    (->SqlWriter pool table)))
-
 (defn upsert-rows [pipeline-data]
   (let [task-map (:onyx.core/task-map pipeline-data)
         table (:sql/table task-map)
