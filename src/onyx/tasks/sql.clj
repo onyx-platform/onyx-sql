@@ -9,6 +9,7 @@
    (s/optional-key :sql/lower-bound) (s/cond-pre s/Uuid s/Num)
    (s/optional-key :sql/upper-bound) (s/cond-pre s/Uuid s/Num)
    (s/optional-key :sql/read-buffer) s/Num
+   (s/optional-key :sql/db-name) s/Str
    :sql/classname s/Str
    :sql/subprotocol s/Str
    :sql/subname s/Str
@@ -37,6 +38,7 @@
     subname :- s/Str
     user :- s/Str
     password :- s/Str
+    db-name :- s/Str
     table :- s/Keyword
     id :- s/Keyword
     task-opts :- {s/Any s/Any}]
@@ -45,6 +47,7 @@
                                      :sql/subname subname
                                      :sql/user user
                                      :sql/password password
+                                     :sql/db-name db-name
                                      :sql/table table
                                      :sql/id id}
                                     task-opts))))
@@ -68,6 +71,7 @@
     subname :- s/Str
     user :- s/Str
     password :- s/Str
+    db-name :- s/Str
     table :- s/Keyword
     id :- s/Keyword
     columns :- [s/Keyword]
@@ -78,13 +82,14 @@
                                              :sql/subname subname
                                              :sql/user user
                                              :sql/password password
+                                             :sql/db-name db-name
                                              :sql/table table
                                              :sql/id id
                                              :sql/columns columns
                                              :sql/rows-per-segment rows-per-segment}
                                             task-opts))))
 
-(def SqlReadRowsTaskMap
+(def SqlReaderTaskMap
   {:sql/id s/Keyword
    :sql/classname s/Str
    :sql/subprotocol s/Str
@@ -92,6 +97,7 @@
    :sql/user s/Str
    :sql/password s/Str
    :sql/table s/Keyword
+   (s/optional-key :sql/db-name) s/Str
    (os/restricted-ns :sql) s/Any})
 
 (s/defn ^:always-validate read-rows
@@ -103,13 +109,14 @@
                             opts)
            :lifecycles [{:lifecycle/task task-name
                          :lifecycle/calls :onyx.plugin.sql/read-rows-calls}]}
-    :schema {:task-map SqlReadRowsTaskMap}})
+    :schema {:task-map SqlReaderTaskMap}})
   ([task-name :- s/Keyword
     classname :- s/Str
     subprotocol :- s/Str
     subname :- s/Str
     user :- s/Str
     password :- s/Str
+    db-name :- s/Str
     table :- s/Keyword
     id :- s/Keyword
     task-opts :- {s/Any s/Any}]
@@ -118,17 +125,19 @@
                                 :sql/subname subname
                                 :sql/user user
                                 :sql/password password
+                                :sql/db-name db-name
                                 :sql/table table
                                 :sql/id id}
                                task-opts))))
 
-(def SqlWriteRowsTaskMap
+(def SqlWriterTaskMap
   {:sql/classname s/Str
    :sql/subprotocol s/Str
    :sql/subname s/Str
    :sql/user s/Str
    :sql/password s/Str
    :sql/table s/Keyword
+   (s/optional-key :sql/db-name) s/Str
    (os/restricted-ns :sql) s/Any})
 
 (s/defn ^:always-validate write-rows
@@ -138,16 +147,15 @@
                              :onyx/type :output
                              :onyx/medium :sql
                              :onyx/doc "Writes segments from the :rows keys to the SQL database"}
-                            opts)
-           :lifecycles [{:lifecycle/task task-name
-                         :lifecycle/calls :onyx.plugin.sql/write-rows-calls}]}
-    :schema {:task-map SqlWriteRowsTaskMap}})
+                            opts)}
+    :schema {:task-map SqlWriterTaskMap}})
   ([task-name :- s/Keyword
     classname :- s/Str
     subprotocol :- s/Str
     subname :- s/Str
     user :- s/Str
     password :- s/Str
+    db-name :- s/Str
     table :- s/Keyword
     task-opts :- {s/Any s/Any}]
    (write-rows task-name (merge {:sql/classname classname
@@ -155,15 +163,17 @@
                                  :sql/subname subname
                                  :sql/user user
                                  :sql/password password
+                                 :sql/db-name db-name
                                  :sql/table table}
                                 task-opts))))
 
-(def SqlUpsertRowsTaskMap
+(def SqlUpserterTaskMap
   {:sql/classname s/Str
    :sql/subprotocol s/Str
    :sql/subname s/Str
    :sql/user s/Str
    :sql/password s/Str
+   :sql/db-name s/Str
    :sql/table s/Keyword
    (os/restricted-ns :sql) s/Any})
 
@@ -174,16 +184,15 @@
                              :onyx/type :output
                              :onyx/medium :sql
                              :onyx/doc "Writes segments from the :rows keys to the SQL database based on :where key"}
-                            opts)
-           :lifecycles [{:lifecycle/task task-name
-                         :lifecycle/calls :onyx.plugin.sql/upsert-rows-calls}]}
-    :schema {:task-map SqlUpsertRowsTaskMap}})
+                            opts)}
+    :schema {:task-map SqlUpserterTaskMap}})
   ([task-name :- s/Keyword
     classname :- s/Str
     subprotocol :- s/Str
     subname :- s/Str
     user :- s/Str
     password :- s/Str
+    db-name :- s/Str
     table :- s/Keyword
     task-opts :- {s/Any s/Any}]
    (upsert-rows task-name (merge {:sql/classname classname
@@ -191,5 +200,6 @@
                                   :sql/subname subname
                                   :sql/user user
                                   :sql/password password
+                                  :sql/db-name db-name
                                   :sql/table table}
                                  task-opts))))

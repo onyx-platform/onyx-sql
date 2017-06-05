@@ -2,13 +2,11 @@
   (:require [aero.core :refer [read-config]]
             [honeysql.core :as honey]
             [clojure.core.async :refer [pipe]]
-            [clojure.core.async.lab :refer [spool]]
             [clojure.java
              [io :as io]
              [jdbc :as jdbc]]
             [clojure.test :refer [deftest is]]
-            [clojure.core.async :refer [pipe]]
-            [clojure.core.async.lab :refer [spool]]
+            [clojure.core.async :refer [pipe] :as async]
             [onyx api
              [job :refer [add-task]]
              [test-helper :refer [with-test-env]]]
@@ -17,14 +15,28 @@
              [core-async :as ca]]
             [onyx.plugin
              [sql]
-             [core-async :refer [take-segments! get-core-async-channels]]])
+             [core-async :refer [get-core-async-channels]]])
   (:import [com.mchange.v2.c3p0 ComboPooledDataSource]))
+
+(defn spool
+  ([s c]
+     (async/go
+      (loop [[f & r] s]
+        (if f
+          (do
+            (async/>! c f)
+            (recur r))
+          (async/close! c))))
+     c)
+  ([s]
+     (spool s (async/chan))))
 
 (defn build-job [db-user db-pass db-sub-base db-name batch-size batch-timeout]
   (let [batch-settings {:onyx/batch-size batch-size :onyx/batch-timeout batch-timeout}
         sql-settings {:sql/classname "com.mysql.jdbc.Driver"
                       :sql/subprotocol "mysql"
-                      :sql/subname (str db-sub-base "/" db-name)
+                      :sql/db-name db-name
+                      :sql/subname db-sub-base
                       :sql/user db-user
                       :sql/password db-pass
                       :sql/table :words}
@@ -48,8 +60,6 @@
 (defn transform [{:keys [id word] :as segment}]
   {:rows [{:word (str word "!")}] :where {:id id}})
 
-#_(def db-name (or (env :test-db-name) "onyx_output_update_test"))
-
 (defn pool [spec]
   {:datasource
    (doto (ComboPooledDataSource.)
@@ -65,8 +75,7 @@
    {:id 2 :word "Orange"}
    {:id 3 :word "Pan"}
    {:id 4 :word "Door"}
-   {:id 5 :word "Surf board"}
-   :done])
+   {:id 5 :word "Surf board"}])
 
 (defn ensure-database! [db-user db-pass db-sub-base db-name]
   (let [db-spec {:classname "com.mysql.jdbc.Driver"
@@ -87,15 +96,14 @@
                  :user db-user
                  :password db-pass}
         cpool (pool db-spec)
-        values (mapv str (range 5000))
-        truncated-words (butlast words)]
+        values (mapv str (range 5000))]
     (jdbc/execute!
      cpool
      (vector (jdbc/create-table-ddl
               :words
-              [:id :int]
-              [:word "VARCHAR(32)"])))
-    (doseq [word truncated-words]
+              [[:id :int]
+               [:word "VARCHAR(32)"]])))
+    (doseq [word words]
       (jdbc/insert! cpool :words word))))
 
 (defn transform-word
@@ -121,4 +129,4 @@
       (->> (:job-id (onyx.api/submit-job peer-config job))
            (onyx.api/await-job-completion peer-config))
       (is (= (jdbc/query cpool (honey/format {:select [:*] :from [:words]}))
-             (map transform-word (butlast words)))))))
+             (map transform-word words))))))

@@ -24,6 +24,10 @@
              {:type :string
               :doc "The password to authenticate with."}
 
+             :sql/db-name
+             {:type :string
+              :doc "The database to connect to."}
+
              :sql/table
              {:type :keyword
               :doc "The table to read/write from/to."}
@@ -34,12 +38,10 @@
 
              :sql/lower-bound
              {:type :integer
-              :optional? true
               :doc "Overrides calculation of min value from the id column."}
 
              :sql/upper-bound
              {:type :integer
-              :optional? true
               :doc "Overrides calculation of max value from the id column."}
 
              :sql/rows-per-segment
@@ -69,11 +71,17 @@
 
              :sql/user
              {:type :string
+              :optional? true
               :doc "The user to authenticate with."}
 
              :sql/password
              {:type :string
               :doc "The password to authenticate with."}
+
+             :sql/db-name
+             {:type :string
+              :optional? true
+              :doc "The database to connect to."}
 
              :sql/table
              {:type :keyword
@@ -99,11 +107,17 @@
 
              :sql/user
              {:type :string
+              :optional? true
               :doc "The user to authenticate with."}
 
              :sql/password
              {:type :string
               :doc "The password to authenticate with."}
+
+             :sql/db-name
+             {:type :string
+              :optional? true
+              :doc "The database to connect to."}
 
              :sql/table
              {:type :keyword
@@ -131,6 +145,10 @@
              {:type :string
               :doc "The password to authenticate with."}
 
+             :sql/db-name
+             {:type :string
+              :doc "The database to connect to."}
+
              :sql/table
              {:type :keyword
               :doc "The table to read/write from/to."}}}
@@ -156,6 +174,10 @@
              :sql/password
              {:type :string
               :doc "The password to authenticate with."}
+
+             :sql/db-name
+             {:type :string
+              :doc "The database to connect to."}
 
              :sql/table
              {:type :keyword
@@ -194,6 +216,7 @@
      :sql/subprotocol
      :sql/user
      :sql/password
+     :sql/db-name
      :sql/table
      :sql/id
      :sql/lower-bound
@@ -207,6 +230,7 @@
      :sql/subprotocol
      :sql/user
      :sql/password
+     :sql/db-name
      :sql/table
      :sql/id]
 
@@ -216,6 +240,7 @@
      :sql/subprotocol
      :sql/user
      :sql/password
+     :sql/db-name
      :sql/table]
 
     :onyx.plugin.sql/upsert-rows
@@ -224,6 +249,7 @@
      :sql/subprotocol
      :sql/user
      :sql/password
+     :sql/db-name
      :sql/table]
 
     :onyx.plugin.sql/write-batch
@@ -232,4 +258,5 @@
      :sql/subprotocol
      :sql/user
      :sql/password
+     :sql/db-name
      :sql/table]}})

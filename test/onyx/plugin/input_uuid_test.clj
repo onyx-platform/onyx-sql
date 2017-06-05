@@ -23,7 +23,8 @@
   (let [batch-settings {:onyx/batch-size batch-size :onyx/batch-timeout batch-timeout}
         sql-settings {:sql/classname "com.mysql.jdbc.Driver"
                       :sql/subprotocol "mysql"
-                      :sql/subname (str db-sub-base "/" db-name)
+                      :sql/db-name db-name
+                      :sql/subname db-sub-base
                       :sql/user db-user
                       :sql/password db-pass
                       :sql/table :people}
@@ -43,8 +44,7 @@
     (-> base-job
         (add-task (sql/partition-keys-by-uuid :partition-keys-by-uuid (merge {:sql/id :id
                                                                               :sql/columns [:name]
-                                                                              :sql/rows-per-segment 2
-                                                                              :onyx/max-pending 10000}
+                                                                              :sql/rows-per-segment 2}
                                                                              sql-settings
                                                                              batch-settings)))
         (add-task (sql/read-rows :read-rows (merge {:sql/id :id}
@@ -89,12 +89,12 @@
      cpool
      (vector (jdbc/create-table-ddl
               :people
-              [:id "BINARY(16) PRIMARY KEY"]
-              [:name "VARCHAR(32)"])))
+              [[:id "BINARY(16) PRIMARY KEY"]
+               [:name "VARCHAR(32)"]])))
     (doseq [person (mapv str (range 5000))]
       (jdbc/insert! cpool :people {:id (onyx.plugin.util/uuid-to-bytes (uuid)) :name person}))))
 
-(deftest sql-uuid-input-test
+#_(deftest sql-uuid-input-test
   (let [{:keys [env-config peer-config sql-config]} (read-config
                                                      (io/resource "config.edn")
                                                      {:profile :test})
@@ -105,5 +105,5 @@
       (ensure-database! username password subname db-name)
       (onyx.test-helper/validate-enough-peers! test-env job)
       (onyx.api/submit-job peer-config job)
-      (is (= (sort (map :name (butlast (take-segments! persist))))
+      (is (= (sort (map :name (take-segments! persist 10000)))
              (sort (mapv str (range 5000))))))))
