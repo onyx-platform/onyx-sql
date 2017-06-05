@@ -93,8 +93,8 @@
      cpool
      (vector (jdbc/create-table-ddl
               :words
-              [:id :int "PRIMARY KEY AUTO_INCREMENT"]
-              [:word "VARCHAR(32)"])))))
+              [[:id :int "PRIMARY KEY AUTO_INCREMENT"]
+               [:word "VARCHAR(32)"]])))))
 
 (def words
   [{:word "Cat"}

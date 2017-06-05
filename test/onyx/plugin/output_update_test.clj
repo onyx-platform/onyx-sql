@@ -101,8 +101,8 @@
      cpool
      (vector (jdbc/create-table-ddl
               :words
-              [:id :int]
-              [:word "VARCHAR(32)"])))
+              [[:id :int]
+               [:word "VARCHAR(32)"]])))
     (doseq [word words]
       (jdbc/insert! cpool :words word))))
 

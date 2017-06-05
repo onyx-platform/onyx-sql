@@ -89,8 +89,8 @@
      cpool
      (vector (jdbc/create-table-ddl
               :people
-              [:id "BINARY(16) PRIMARY KEY"]
-              [:name "VARCHAR(32)"])))
+              [[:id "BINARY(16) PRIMARY KEY"]
+               [:name "VARCHAR(32)"]])))
     (doseq [person (mapv str (range 5000))]
       (jdbc/insert! cpool :people {:id (onyx.plugin.util/uuid-to-bytes (uuid)) :name person}))))
 

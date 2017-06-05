@@ -97,8 +97,8 @@
      cpool
      (vector (jdbc/create-table-ddl
               table-name
-              [:id :int "PRIMARY KEY AUTO_INCREMENT"]
-              [:name "VARCHAR(32)"])))
+              [[:id :int "PRIMARY KEY AUTO_INCREMENT"]
+               [:name "VARCHAR(32)"]])))
     (doseq [person values]
       (jdbc/insert! cpool table-name {:name person}))))
 
