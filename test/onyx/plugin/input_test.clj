@@ -21,7 +21,8 @@
   (let [batch-settings {:onyx/batch-size batch-size :onyx/batch-timeout batch-timeout}
         sql-settings {:sql/classname "com.mysql.jdbc.Driver"
                       :sql/subprotocol "mysql"
-                      :sql/subname (str db-sub-base "/" db-name)
+                      :sql/db-name db-name
+                      :sql/subname db-sub-base
                       :sql/user db-user
                       :sql/password db-pass
                       :sql/table table-name}
@@ -96,8 +97,8 @@
      cpool
      (vector (jdbc/create-table-ddl
               table-name
-              [:id :int "PRIMARY KEY AUTO_INCREMENT"]
-              [:name "VARCHAR(32)"])))
+              [[:id :int "PRIMARY KEY AUTO_INCREMENT"]
+               [:name "VARCHAR(32)"]])))
     (doseq [person values]
       (jdbc/insert! cpool table-name {:name person}))))
 

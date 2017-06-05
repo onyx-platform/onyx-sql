@@ -34,7 +34,8 @@
   (let [batch-settings {:onyx/batch-size batch-size :onyx/batch-timeout batch-timeout}
         sql-settings {:sql/classname "com.mysql.jdbc.Driver"
                       :sql/subprotocol "mysql"
-                      :sql/subname (str db-sub-base "/" db-name)
+                      :sql/subname db-sub-base 
+                      :sql/db-name db-name
                       :sql/user db-user
                       :sql/password db-pass
                       :sql/table :words}
@@ -92,8 +93,8 @@
      cpool
      (vector (jdbc/create-table-ddl
               :words
-              [:id :int "PRIMARY KEY AUTO_INCREMENT"]
-              [:word "VARCHAR(32)"])))))
+              [[:id :int "PRIMARY KEY AUTO_INCREMENT"]
+               [:word "VARCHAR(32)"]])))))
 
 (def words
   [{:word "Cat"}

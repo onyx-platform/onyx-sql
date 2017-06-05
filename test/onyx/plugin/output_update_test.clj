@@ -35,7 +35,8 @@
   (let [batch-settings {:onyx/batch-size batch-size :onyx/batch-timeout batch-timeout}
         sql-settings {:sql/classname "com.mysql.jdbc.Driver"
                       :sql/subprotocol "mysql"
-                      :sql/subname (str db-sub-base "/" db-name)
+                      :sql/db-name db-name
+                      :sql/subname db-sub-base
                       :sql/user db-user
                       :sql/password db-pass
                       :sql/table :words}
@@ -100,8 +101,8 @@
      cpool
      (vector (jdbc/create-table-ddl
               :words
-              [:id :int]
-              [:word "VARCHAR(32)"])))
+              [[:id :int]
+               [:word "VARCHAR(32)"]])))
     (doseq [word words]
       (jdbc/insert! cpool :words word))))
 
