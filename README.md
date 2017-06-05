@@ -128,9 +128,16 @@ Catalog entry:
  :sql/user "db-user"
  :sql/password "db-pass"
  :sql/table :table-name
+ :sql/copy? boolean
+ :sql/copy-fields [:first :second :third] 
  :onyx/batch-size batch-size
  :onyx/doc "Writes segments from the :rows keys to the SQL database"}
 ```
+
+When `sql/copy?` is true, attempts to import rows using the `COPY` statement for
+supported databases (currently only PostgreSQL). If enables, expects 
+`sql/copy-fields` to be a vector that determines the order in which columns will
+be rendered.
 
 ##### upsert-rows
 
