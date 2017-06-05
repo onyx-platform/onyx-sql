@@ -157,8 +157,7 @@
     (doseq [msg (mapcat :leaves (:tree results))]
       (jdbc/with-db-transaction
         [conn pool]
-        (doseq [row (:rows msg)]
-          (jdbc/insert! conn table row))))
+        (jdbc/insert-multi! conn table (:rows msg))))
     true))
 
 (defn write-rows [pipeline-data]
