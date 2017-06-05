@@ -34,7 +34,8 @@
   (let [batch-settings {:onyx/batch-size batch-size :onyx/batch-timeout batch-timeout}
         sql-settings {:sql/classname "com.mysql.jdbc.Driver"
                       :sql/subprotocol "mysql"
-                      :sql/subname (str db-sub-base "/" db-name)
+                      :sql/subname db-sub-base 
+                      :sql/db-name db-name
                       :sql/user db-user
                       :sql/password db-pass
                       :sql/table :words}

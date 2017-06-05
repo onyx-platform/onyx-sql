@@ -206,7 +206,7 @@ Pull requests into the master branch are welcomed.
 
 Running the tests can be easily performed by starting a mysql container with docker:
 ```
- docker run -e MYSQL_ROOT_PASSWORD="" -e MYSQL_ALLOW_EMPTY_PASSWORD=yes -p 3306:3306 -d mysql:latest
+ docker run -e MYSQL_ROOT_PASSWORD="password" -p 3306:3306 -d mysql:latest
  ```
 
 #### License
