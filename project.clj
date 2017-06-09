@@ -1,4 +1,4 @@
-(defproject org.onyxplatform/onyx-sql "0.10.0.0-SNAPSHOT"
+(defproject org.onyxplatform/onyx-sql "0.10.0.0-rc1"
   :description "Onyx plugin for JDBC-backed SQL databases"
   :url "https://github.com/onyx-platform/onyx-sql"
   :license {:name "Eclipse Public License"
