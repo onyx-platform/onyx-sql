@@ -212,5 +212,3 @@ Running the tests can be easily performed by starting a mysql container with doc
 #### License
 
 Copyright © 2016 Distributed Masonry
-
-Distributed under the Eclipse Public License, the same as Clojure.
