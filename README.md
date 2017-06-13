@@ -7,7 +7,7 @@ Onyx plugin providing read and write facilities for SQL databases with JDBC supp
 In your project file:
 
 ```clojure
-[org.onyxplatform/onyx-sql "0.9.15.1-SNAPSHOT"]
+[org.onyxplatform/onyx-sql "0.10.0-SNAPSHOT"]
 ```
 
 In your peer boot-up namespace:
@@ -212,5 +212,3 @@ Running the tests can be easily performed by starting a mysql container with doc
 #### License
 
 Copyright © 2016 Distributed Masonry
-
-Distributed under the Eclipse Public License, the same as Clojure.
