@@ -109,7 +109,7 @@
   (checkpointed! [this epoch])
 
   p/Input
-  (poll! [this segment]
+  (poll! [this segment _]
     (if-let [part (first @rst)]
       (do (vswap! rst rest)
           (read-rows pool table id columns part))

@@ -2,6 +2,9 @@ dependencies:
   override:
     - echo '{:user {:plugins [[lein-voom "0.1.0-20160311_203101-g259fbfc"]]}}' > ~/.lein/profiles.clj
     - lein voom build-deps
+  pre:
+    - sudo stop mysql
+    - docker run -e MYSQL_ROOT_PASSWORD="password" -p 3306:3306 -d mysql:latest
 
 test:
   override:
@@ -9,9 +12,8 @@ test:
         timeout: 240
 
 machine:
-  environment:
-    TEST_DB_USER: "ubuntu"
-    TEST_DB_NAME: "circle_test"
+  services:
+    - docker
   java:
     version: oraclejdk8
 
