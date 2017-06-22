@@ -34,7 +34,7 @@
   (let [batch-settings {:onyx/batch-size batch-size :onyx/batch-timeout batch-timeout}
         sql-settings {:sql/classname "com.mysql.jdbc.Driver"
                       :sql/subprotocol "mysql"
-                      :sql/subname db-sub-base 
+                      :sql/subname db-sub-base
                       :sql/db-name db-name
                       :sql/user db-user
                       :sql/password db-pass
@@ -104,10 +104,10 @@
    {:word "Surf board"}])
 
 (deftest sql-output-test
-  (let [{:keys [env-config peer-config sql-config]} (read-config
+  (let [{:keys [env-config peer-config mysql-config]} (read-config
                                                      (io/resource "config.edn")
                                                      {:profile :test})
-        {:keys [sql/username sql/password sql/subname sql/db-name]} sql-config
+        {:keys [sql/username sql/password sql/subname sql/db-name]} mysql-config
         job (build-job username password subname db-name 10 1000)
         {:keys [in]} (get-core-async-channels job)
         cpool (pool {:classname "com.mysql.jdbc.Driver"

@@ -24,10 +24,10 @@
   :onyx.messaging/peer-port              40200
   :onyx.messaging.aeron/embedded-driver? #cond {:default false
                                                 :test true}}
- :sql-config
+ :mysql-config
  {:sql/db-name "onyx_input_test"
   :sql/username "root"
-  :sql/password "password"
+  :sql/password ""
   :sql/subname "//127.0.0.1:3306"
   :sql/classname "com.mysql.jdbc.Driver"
   :sql/subprotocol "mysql"}}

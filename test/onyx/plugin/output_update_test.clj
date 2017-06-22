@@ -111,10 +111,10 @@
   {:id (:id word) :word (str (:word word) "!")})
 
 (deftest sql-update-output-test
-  (let [{:keys [env-config peer-config sql-config]} (read-config
+  (let [{:keys [env-config peer-config mysql-config]} (read-config
                                                      (io/resource "config.edn")
                                                      {:profile :test})
-        {:keys [sql/username sql/password sql/subname sql/db-name]} sql-config
+        {:keys [sql/username sql/password sql/subname sql/db-name]} mysql-config
         job (build-job username password subname db-name 10 1000)
         {:keys [in]} (get-core-async-channels job)
         cpool (pool {:classname "com.mysql.jdbc.Driver"
