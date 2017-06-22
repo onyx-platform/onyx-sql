@@ -218,7 +218,7 @@
      :sql/db-name
      :sql/table
      :sql/copy?
-     :sql/copy-rows]
+     :sql/copy-columns]
 
     :onyx.plugin.sql/upsert-rows
     [:sql/classname
