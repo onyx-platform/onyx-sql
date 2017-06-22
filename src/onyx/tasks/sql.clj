@@ -138,7 +138,7 @@
    :sql/password s/Str
    :sql/table s/Keyword
    (s/optional-key :sql/db-name) s/Str
-   (s/optional-key :sql/copy?) s/Boolean
+   (s/optional-key :sql/copy?) s/Bool
    (s/optional-key :sql/copy-columns) [s/Keyword]
    (os/restricted-ns :sql) s/Any})
 
@@ -159,7 +159,7 @@
     password :- s/Str
     db-name :- s/Str
     table :- s/Keyword
-    copy? :- s/Boolean
+    copy? :- s/Bool
     copy-columns :- [s/Keyword]
     task-opts :- {s/Any s/Any}]
    (write-rows task-name (merge {:sql/classname classname
