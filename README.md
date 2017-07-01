@@ -128,9 +128,16 @@ Catalog entry:
  :sql/user "db-user"
  :sql/password "db-pass"
  :sql/table :table-name
+ :sql/copy? boolean
+ :sql/copy-fields [:first :second :third] 
  :onyx/batch-size batch-size
  :onyx/doc "Writes segments from the :rows keys to the SQL database"}
 ```
+
+When `sql/copy?` is true, attempts to import rows using the `COPY` statement for
+supported databases (currently only PostgreSQL). If enables, expects 
+`sql/copy-fields` to be a vector that determines the order in which columns will
+be rendered.
 
 ##### upsert-rows
 
@@ -158,29 +165,6 @@ Lifecycle entry:
 ```clojure
 {:lifecycle/task :upsert-rows
  :lifecycle/calls :onyx.plugin.sql/upsert-rows-calls}
-```
-
-##### write-batch
-
-Like `write-rows`, except the entire batch of segments in the lifecycle
-are written together in one transaction. Thus, each segment is itself a row,
-and collecting segments together with `:rows` is not required.
-
-Catalog entry:
-
-```clojure
-{:onyx/name :write-batch
- :onyx/plugin :onyx.plugin.sql/write-batch
- :onyx/type :output
- :onyx/medium :sql
- :sql/classname "my.class.name"
- :sql/subprotocol "db-subprotocol"
- :sql/subname "db-sub-name"
- :sql/user "db-user"
- :sql/password "db-pass"
- :sql/table :table-name
- :onyx/batch-size batch-size
- :onyx/doc "Writes segments to the SQL database"}
 ```
 
 #### Attributes
