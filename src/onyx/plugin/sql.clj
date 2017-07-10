@@ -1,5 +1,6 @@
 (ns onyx.plugin.sql
   (:require [clojure.java.jdbc :as jdbc]
+            [clojure.string :as str]
             [clojure.pprint :as pp]
             [clojure.core.async :refer [chan >! >!! <!! close! go timeout alts!! go-loop]]
             [onyx.types :as t]
@@ -11,8 +12,13 @@
             [onyx.plugin.protocols :as p]
             [taoensso.timbre :refer [info error debug fatal]]
             [honeysql.core :as sql]
-            [java-jdbc.sql :as sql-dsl])
-  (:import [com.mchange.v2.c3p0 ComboPooledDataSource]))
+            [java-jdbc.sql :as sql-dsl]
+            [clojure.java.io :as io]
+
+            [onyx.plugin.pgsql :as pgsql])
+  (:import [com.mchange.v2.c3p0 ComboPooledDataSource]
+           [java.sql Connection]
+           [java.io ByteArrayInputStream]))
 
 (defn create-pool [spec]
   {:datasource
@@ -126,7 +132,10 @@
                           :completed? (volatile! false)
                           :offset (volatile! nil)})))
 
-(defrecord SqlWriter [pool table]
+(defn- jdbc-insert-multi! [table conn rows]
+  (jdbc/insert-multi! conn table rows))
+
+(defrecord SqlWriter [pool insert-fn]
   p/Plugin
   (start [this event]
     this)
@@ -154,17 +163,25 @@
     true)
 
   (write-batch [this {:keys [onyx.core/results]} replica messenger]
+
     (doseq [msg (mapcat :leaves (:tree results))]
       (jdbc/with-db-transaction
         [conn pool]
-        (jdbc/insert-multi! conn table (:rows msg))))
+
+        (insert-fn conn (:rows msg))))
     true))
 
 (defn write-rows [pipeline-data]
   (let [task-map (:onyx.core/task-map pipeline-data)
         table (:sql/table task-map)
-        pool (task->pool task-map)]
-    (->SqlWriter pool table)))
+        pool (task->pool task-map)
+
+        insert-fn (if (and (:sql/copy? task-map)
+                           pgsql/available?)
+                    (partial pgsql/copy table (:sql/copy-columns task-map))
+                    (partial jdbc-insert-multi! table))]
+
+    (->SqlWriter pool insert-fn)))
 
 (defrecord SqlUpserter [pool table]
     p/Plugin
@@ -202,12 +219,6 @@
         (doseq [row (:rows msg)]
           (jdbc/update! conn table row (sql-dsl/where (:where msg))))))
     true))
-
-(defn write-batch [pipeline-data]
-  (let [task-map (:onyx.core/task-map pipeline-data)
-        table (:sql/table task-map)
-        pool (task->pool task-map)]
-    (->SqlWriter pool table)))
 
 (defn upsert-rows [pipeline-data]
   (let [task-map (:onyx.core/task-map pipeline-data)

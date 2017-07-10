@@ -1,4 +1,4 @@
-(ns onyx.plugin.output-test
+(ns onyx.plugin.output-copy-test
   (:require [aero.core :refer [read-config]]
             [honeysql.core :as honey]
             [clojure.java
@@ -32,17 +32,19 @@
 
 (defn build-job [db-user db-pass db-sub-base db-name batch-size batch-timeout]
   (let [batch-settings {:onyx/batch-size batch-size :onyx/batch-timeout batch-timeout}
-        sql-settings {:sql/classname "com.mysql.jdbc.Driver"
-                      :sql/subprotocol "mysql"
+        sql-settings {:sql/classname "org.postgresql.Driver"
+                      :sql/subprotocol "postgresql"
                       :sql/subname db-sub-base
                       :sql/db-name db-name
                       :sql/user db-user
                       :sql/password db-pass
-                      :sql/table :words}
+                      :sql/table :words
+                      :sql/copy? true
+                      :sql/copy-columns [:id :word]}
         base-job {:workflow [[:in :transform]
                              [:transform :out]]
                   :catalog [{:onyx/name :transform
-                             :onyx/fn :onyx.plugin.output-test/transform
+                             :onyx/fn :onyx.plugin.output-copy-test/transform
                              :onyx/type :function
                              :onyx/batch-size batch-size
                              :onyx/doc "Transforms a segment to prepare for SQL persistence"}]
@@ -56,8 +58,9 @@
         (add-task (ca/input :in batch-settings))
         (add-task (sql/write-rows :out (merge sql-settings batch-settings))))))
 
-(defn transform [{:keys [word] :as segment}]
-  {:rows [{:word word}]})
+(defn transform [{:keys [id word] :as segment}]
+  {:rows [{:id id
+           :word word}]})
 
 (defn pool [spec]
   {:datasource
@@ -69,21 +72,22 @@
      (.setMaxIdleTimeExcessConnections (* 30 60))
      (.setMaxIdleTime (* 3 60 60)))})
 
-(defn ensure-database! [db-user db-pass db-sub-base db-name]
-  (let [db-spec {:classname "com.mysql.jdbc.Driver"
-                 :subprotocol "mysql"
-                 :subname db-sub-base
+(defn ensure-table! [db-user db-pass db-sub-base db-name]
+  (let [db-spec {:classname "org.postgresql.Driver"
+                 :subprotocol "postgresql"
+                 :subname (str db-sub-base "/" db-name)
                  :user db-user
                  :password db-pass}
         cpool (pool db-spec)]
     (try
-      (jdbc/execute! cpool [(str "drop database " db-name)])
+      (jdbc/execute!
+       cpool
+       (vector (jdbc/drop-table-ddl
+                :words)))
       (catch Exception e
-        (.printStackTrace e)))
-    (jdbc/execute! cpool [(str "create database " db-name)])
-    (jdbc/execute! cpool [(str "use " db-name)]))
-  (let [db-spec {:classname "com.mysql.jdbc.Driver"
-                 :subprotocol "mysql"
+        (.printStackTrace e))))
+  (let [db-spec {:classname "org.postgresql.Driver"
+                 :subprotocol "postgresql"
                  :subname (str db-sub-base "/" db-name)
                  :user db-user
                  :password db-pass}
@@ -93,30 +97,35 @@
      cpool
      (vector (jdbc/create-table-ddl
               :words
-              [[:id :int "PRIMARY KEY AUTO_INCREMENT"]
+              [[:id :integer "PRIMARY KEY"]
                [:word "VARCHAR(32)"]])))))
 
 (def words
-  [{:word "Cat"}
-   {:word "Orange"}
-   {:word "Pan"}
-   {:word "Door"}
-   {:word "Surf board"}])
+  [{:id 1
+    :word "Cat"}
+   {:id 2
+    :word "Orange"}
+   {:id 3
+    :word "Pan"}
+   {:id 4
+    :word "Door"}
+   {:id 5
+    :word "Surf board"}])
 
 (deftest sql-output-test
-  (let [{:keys [env-config peer-config mysql-config]} (read-config
-                                                     (io/resource "config.edn")
-                                                     {:profile :test})
-        {:keys [sql/username sql/password sql/subname sql/db-name]} mysql-config
+  (let [{:keys [env-config peer-config pgsql-config]} (read-config
+                                                       (io/resource "config.edn")
+                                                       {:profile :test})
+        {:keys [sql/username sql/password sql/subname sql/db-name]} pgsql-config
         job (build-job username password subname db-name 10 1000)
         {:keys [in]} (get-core-async-channels job)
-        cpool (pool {:classname "com.mysql.jdbc.Driver"
-                     :subprotocol "mysql"
+        cpool (pool {:classname "org.postgresql.Driver"
+                     :subprotocol "postgresql"
                      :subname (str subname "/" db-name)
                      :user username
                      :password password})]
     (with-test-env [test-env [4 env-config peer-config]]
-      (ensure-database! username password subname db-name)
+      (ensure-table! username password subname db-name)
       (pipe (spool words) in true)
       (onyx.test-helper/validate-enough-peers! test-env job)
       (->> (:job-id (onyx.api/submit-job peer-config job))

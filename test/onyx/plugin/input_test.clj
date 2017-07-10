@@ -103,11 +103,11 @@
       (jdbc/insert! cpool table-name {:name person}))))
 
 (deftest sql-input-test
-  (let [{:keys [env-config peer-config sql-config]} (read-config
+  (let [{:keys [env-config peer-config mysql-config]} (read-config
                                                      (io/resource "config.edn")
                                                      {:profile :test})
         peer-config (assoc peer-config :onyx.peer/coordinator-barrier-period-ms 1)
-        {:keys [sql/username sql/password sql/subname sql/db-name]} sql-config
+        {:keys [sql/username sql/password sql/subname sql/db-name]} mysql-config
         job (build-job username password subname db-name 1 1000)
         {:keys [persist]} (get-core-async-channels job)]
     (with-test-env [test-env [4 env-config peer-config]]

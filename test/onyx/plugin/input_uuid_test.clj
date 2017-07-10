@@ -95,10 +95,10 @@
       (jdbc/insert! cpool :people {:id (onyx.plugin.util/uuid-to-bytes (uuid)) :name person}))))
 
 #_(deftest sql-uuid-input-test
-  (let [{:keys [env-config peer-config sql-config]} (read-config
+  (let [{:keys [env-config peer-config mysql-config]} (read-config
                                                      (io/resource "config.edn")
                                                      {:profile :test})
-        {:keys [sql/username sql/password sql/subname sql/db-name]} sql-config
+        {:keys [sql/username sql/password sql/subname sql/db-name]} mysql-config
         job (build-job username password subname db-name 10 1000)
         {:keys [persist]} (get-core-async-channels job)]
     (with-test-env [test-env [4 env-config peer-config]]
