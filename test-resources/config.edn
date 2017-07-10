@@ -27,7 +27,7 @@
  :mysql-config
  {:sql/db-name "onyx_input_test"
   :sql/username "root"
-  :sql/password ""
+  :sql/password "password"
   :sql/subname "//127.0.0.1:3306"
   :sql/classname "com.mysql.jdbc.Driver"
   :sql/subprotocol "mysql"}
