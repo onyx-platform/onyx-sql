@@ -35,7 +35,7 @@
  :pgsql-config
  {:sql/db-name "onyx_input_test"
   :sql/username "postgresql"
-  :sql/password ""
+  :sql/password "password"
   :sql/subname "//127.0.0.1:5432"
   :sql/classname "org.postgresql.Driver"
   :sql/subprotocol "postgresql"}}
