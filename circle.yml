@@ -4,7 +4,7 @@ dependencies:
     - lein voom build-deps
   pre:
     - sudo stop mysql
-    - sudo stop postgresql
+    - sudo /etc/init.d/postgresql stop
     - docker run -e MYSQL_ROOT_PASSWORD="password" -p 3306:3306 -d mysql:latest
     - docker run -e POSTGRES_PASSWORD=password -e POSTGRES_USER=postgresql -e POSTGRES_DB=onyx_input_test -p 5432:5432 library/postgres
 
