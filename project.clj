@@ -14,7 +14,7 @@
   :dependencies [[org.clojure/clojure "1.7.0"]
                  [org.clojure/java.jdbc "0.7.0-alpha3"]
                  ^{:voom {:repo "git@github.com:onyx-platform/onyx.git" :branch "master"}}
-                 [org.onyxplatform/onyx "0.10.0-20170711_202812-g1e5e0ab"]
+                 [org.onyxplatform/onyx "0.10.0-20170712_015814-g489b6cc"]
                  [java-jdbc/dsl "0.1.3"]
                  [com.mchange/c3p0 "0.9.5.2"]
                  [aero "0.2.0"]
