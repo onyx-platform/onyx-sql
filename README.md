@@ -62,13 +62,6 @@ Catalog entry:
  :onyx/doc "Partitions a range of primary keys into subranges"}
 ```
 
-Lifecycle entry:
-
-```clojure
-{:lifecycle/task :partition-keys
- :lifecycle/calls :onyx.plugin.sql/partition-keys-calls}
-```
-
 `:sql/columns` supports restricting the select to only certain columns, e.g. `:sql/columns [:id :name]`.
 
 `:sql/lower-bound` overrides `partition-key` calculation of min from the `:sql/id` column.
@@ -95,13 +88,6 @@ Catalog entry:
  :sql/table :table-name
  :sql/id :column-to-split-by
  :onyx/doc "Reads rows of a SQL table bounded by a key range"}
-```
-
-Lifecycle entry:
-
-```clojure
-{:lifecycle/task :read-rows
- :lifecycle/calls :onyx.plugin.sql/read-rows-calls}
 ```
 
 ##### write-rows
@@ -158,13 +144,6 @@ Catalog entry:
  :sql/table :table-name
  :onyx/batch-size batch-size
  :onyx/doc "Upserts segments from the :rows keys to the SQL database"}
-```
-
-Lifecycle entry:
-
-```clojure
-{:lifecycle/task :upsert-rows
- :lifecycle/calls :onyx.plugin.sql/upsert-rows-calls}
 ```
 
 #### Attributes
