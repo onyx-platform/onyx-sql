@@ -141,6 +141,7 @@
     this)
 
   (stop [this event]
+    (.close (:datasource pool))
     this)
 
   p/BarrierSynchronization
@@ -189,6 +190,7 @@
     this)
 
   (stop [this event]
+    (.close (:datasource pool))
     this)
 
   p/BarrierSynchronization
