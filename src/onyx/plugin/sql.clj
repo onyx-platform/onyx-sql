@@ -227,33 +227,3 @@
         table (:sql/table task-map)
         pool (task->pool task-map)]
     (->SqlUpserter pool table)))
-
-(defn inject-write-rows
-  [event lifecycle]
-  {})
-
-(defn close-write-rows
-  [event lifecycle]
-  {})
-
-(defn inject-upsert-rows
-  [event lifecycle]
-  {})
-
-(defn close-update-rows
-  [event lifecycle]
-  {})
-
-(def partition-keys-calls
-  {})
-
-(def partition-uuid-calls
-  {})
-
-(def write-rows-calls
-  {:lifecycle/before-task-start inject-write-rows
-   :lifecycle/after-task-stop close-write-rows})
-
-(def upsert-rows-calls
-  {:lifecycle/before-task-start inject-upsert-rows
-   :lifecycle/after-task-stop close-update-rows})

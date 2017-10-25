@@ -48,8 +48,6 @@
                              :onyx/type :function
                              :onyx/batch-size batch-size
                              :onyx/doc "Transforms a segment to prepare for SQL persistence"}]
-                  :lifecycles [{:lifecycle/task :out
-                                :lifecycle/calls :onyx.plugin.sql/write-rows-calls}]
                   :windows []
                   :triggers []
                   :flow-conditions []

@@ -47,8 +47,6 @@
                              :onyx/type :function
                              :onyx/batch-size 1000
                              :onyx/doc "Transforms a segment to prepare for SQL persistence"}]
-                  :lifecycles [{:lifecycle/task :out
-                                :lifecycle/calls :onyx.plugin.sql/upsert-rows-calls}]
                   :windows []
                   :triggers []
                   :flow-conditions []
