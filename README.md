@@ -190,7 +190,7 @@ Pull requests into the master branch are welcomed.
 
 Running the tests can be easily performed by starting a mysql and postgres container with docker:
 ```
- docker run -e MYSQL_ROOT_PASSWORD="password" -p 3306:3306 -d mysql:latest
+ docker run -e MYSQL_ROOT_PASSWORD="password" -e MYSQL_DATABASE="onyx_input_test" -p 3306:3306 -d mysql:latest
  docker run -e POSTGRES_PASSWORD=password -e POSTGRES_USER=postgresql -e POSTGRES_DB=onyx_input_test -p 5432:5432 library/postgres
  ```
 
