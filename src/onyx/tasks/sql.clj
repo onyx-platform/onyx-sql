@@ -28,9 +28,7 @@
                              :sql/rows-per-segment 500
                              :sql/read-buffer 1000
                              :onyx/doc "Partitions a range of primary keys into subranges"}
-                            opts)
-           :lifecycles [{:lifecycle/task task-name
-                         :lifecycle/calls :onyx.plugin.sql/partition-keys-calls}]}
+                            opts)}
     :schema {:task-map SqlPartitionKeysTaskMap}})
   ([task-name :- s/Keyword
     classname :- s/Str
@@ -61,9 +59,7 @@
                              :sql/columns [:*]
                              :sql/rows-per-segment 500
                              :onyx/doc "Partitions a range of primary keys into subranges"}
-                            opts)
-           :lifecycles [{:lifecycle/task task-name
-                         :lifecycle/calls :onyx.plugin.sql/partition-uuid-calls}]}
+                            opts)}
     :schema {:task-map SqlPartitionKeysTaskMap}})
   ([task-name :- s/Keyword
     classname :- s/Str
@@ -106,9 +102,7 @@
                              :onyx/fn :onyx.plugin.sql/read-rows
                              :onyx/type :function
                              :onyx/doc "Reads rows of a SQL table bounded by a key range"}
-                            opts)
-           :lifecycles [{:lifecycle/task task-name
-                         :lifecycle/calls :onyx.plugin.sql/read-rows-calls}]}
+                            opts)}
     :schema {:task-map SqlReaderTaskMap}})
   ([task-name :- s/Keyword
     classname :- s/Str
