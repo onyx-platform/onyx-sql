@@ -163,9 +163,9 @@
   (prepare-batch [this event replica messenger]
     true)
 
-  (write-batch [this {:keys [onyx.core/results]} replica messenger]
+  (write-batch [this {:keys [onyx.core/write-batch]} replica messenger]
 
-    (doseq [msg (mapcat :leaves (:tree results))]
+    (doseq [msg write-batch]
       (jdbc/with-db-transaction
         [conn pool]
 
@@ -214,8 +214,8 @@
     true)
 
   (write-batch
-    [_ {:keys [onyx.core/results]} replica _]
-    (doseq [msg (mapcat :leaves (:tree results))]
+    [_ {:keys [onyx.core/write-batch]} replica _]
+    (doseq [msg write-batch]
       (jdbc/with-db-transaction
         [conn pool]
         (doseq [row (:rows msg)]
