@@ -16,6 +16,7 @@
             [onyx.plugin
              [sql]
              [core-async :refer [get-core-async-channels]]
+             [mysql :as mysql]
              [pgsql :as pgsql]])
   (:import [com.mchange.v2.c3p0 ComboPooledDataSource]))
 
@@ -130,10 +131,18 @@
       (is (= (jdbc/query cpool (honey/format {:select [:*] :from [:words]}))
              (map transform-word words))))))
 
-(deftest sql-postgres-upsert-query-string
-  (let [table "postgres_upsert"
+(deftest mysql-upsert-query-string
+  (let [table "upsert_db"
+        row {:a "alpha" :b "beta"}
+        where {:id 1}]
+    (is (= (mysql/upsert table row where)
+           ["INSERT INTO ? (id, a, b) VALUES (1, ?, ?) ON DUPLICATE KEY UPDATE a = ?, b = ?"
+            "upsert_db" "alpha" "beta" "alpha" "beta"]))))
+
+(deftest postgres-upsert-query-string
+  (let [table "upsert_db"
         row {:a "alpha" :b "beta"}
         where {:id 1}]
     (is (= (pgsql/upsert table row where)
            ["INSERT INTO ? (id, a, b) VALUES (1, ?, ?) ON CONFLICT (id) DO UPDATE SET a = EXCLUDED.a, b = EXCLUDED.b"
-            "postgres_upsert" "alpha" "beta"]))))
+            "upsert_db" "alpha" "beta"]))))
