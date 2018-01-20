@@ -15,7 +15,8 @@
              [core-async :as ca]]
             [onyx.plugin
              [sql]
-             [core-async :refer [get-core-async-channels]]])
+             [core-async :refer [get-core-async-channels]]
+             [pgsql :as pgsql]])
   (:import [com.mchange.v2.c3p0 ComboPooledDataSource]))
 
 (defn spool
@@ -128,3 +129,11 @@
            (onyx.api/await-job-completion peer-config))
       (is (= (jdbc/query cpool (honey/format {:select [:*] :from [:words]}))
              (map transform-word words))))))
+
+(deftest sql-postgres-upsert-query-string
+  (let [table "postgres_upsert"
+        row {:a "alpha" :b "beta"}
+        where {:id 1}]
+    (is (= (pgsql/upsert table row where)
+           ["INSERT INTO ? (id, a, b) VALUES (1, ?, ?) ON CONFLICT (id) DO UPDATE SET a = EXCLUDED.a, b = EXCLUDED.b"
+            "postgres_upsert" "alpha" "beta"]))))

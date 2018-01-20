@@ -219,7 +219,9 @@
       (jdbc/with-db-transaction
         [conn pool]
         (doseq [row (:rows msg)]
-          (jdbc/update! conn table row (sql-dsl/where (:where msg))))))
+          (case (:subprotocol conn)
+            "postgresql" (jdbc/execute! conn (pgsql/upsert table row (:where msg)))
+            (jdbc/update! conn table row (sql-dsl/where (:where msg)))))))
     true))
 
 (defn upsert-rows [pipeline-data]
