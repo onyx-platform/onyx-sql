@@ -77,6 +77,11 @@
    {:id 4 :word "Door"}
    {:id 5 :word "Surf board"}])
 
+(def all-words
+  ;; "Dog" and "Window" will be replaced by "Cat" and "Door" after upserts.
+  (concat [{:id 1 :word "Dog"}
+           {:id 4 :word "Window"}] words))
+
 (defn ensure-database! [db-user db-pass db-sub-base db-name]
   (let [db-spec {:classname "com.mysql.jdbc.Driver"
                  :subprotocol "mysql"
@@ -103,8 +108,10 @@
               :words
               [[:id :int "PRIMARY KEY"]
                [:word "VARCHAR(32)"]])))
-    (doseq [word words]
-      (jdbc/insert! cpool :words word))))
+    (doseq [word all-words]
+      (jdbc/execute! cpool (mysql/upsert :words
+                                         (dissoc word :id)
+                                         (dissoc word :word))))))
 
 (defn transform-word
   [word]
@@ -112,8 +119,8 @@
 
 (deftest sql-update-output-test
   (let [{:keys [env-config peer-config mysql-config]} (read-config
-                                                     (io/resource "config.edn")
-                                                     {:profile :test})
+                                                       (io/resource "config.edn")
+                                                       {:profile :test})
         {:keys [sql/username sql/password sql/subname sql/db-name]} mysql-config
         job (build-job username password subname db-name 10 1000)
         {:keys [in]} (get-core-async-channels job)
@@ -124,7 +131,7 @@
                      :password password})]
     (with-test-env [test-env [4 env-config peer-config]]
       (ensure-database! username password subname db-name)
-      (pipe (spool words) in true)
+      (pipe (spool all-words) in true)
       (onyx.test-helper/validate-enough-peers! test-env job)
       (->> (:job-id (onyx.api/submit-job peer-config job))
            (onyx.api/await-job-completion peer-config))
