@@ -15,6 +15,7 @@
             [java-jdbc.sql :as sql-dsl]
             [clojure.java.io :as io]
 
+            [onyx.plugin.mysql :as mysql]
             [onyx.plugin.pgsql :as pgsql])
   (:import [com.mchange.v2.c3p0 ComboPooledDataSource]
            [java.sql Connection]
@@ -219,7 +220,10 @@
       (jdbc/with-db-transaction
         [conn pool]
         (doseq [row (:rows msg)]
-          (jdbc/update! conn table row (sql-dsl/where (:where msg))))))
+          (case (:subprotocol conn)
+            "postgresql" (jdbc/execute! conn (pgsql/upsert table row (:where msg)))
+            "mysql" (jdbc/execute! conn (mysql/upsert table row (:where msg)))
+            (jdbc/update! conn table row (sql-dsl/where (:where msg)))))))
     true))
 
 (defn upsert-rows [pipeline-data]

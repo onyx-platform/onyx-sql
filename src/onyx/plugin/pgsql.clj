@@ -3,7 +3,9 @@
    can be used."
 
   (:require [clojure.java.jdbc :as jdbc]
-            [clojure.string :as str]))
+            [clojure.string :as str]
+            [honeysql.core :as hsql]
+            [honeysql-postgres.format]))
 
 (def ht-byte (.getBytes (str "\t") "UTF-8"))
 (def nl-byte (.getBytes (str "\n") "UTF-8"))
@@ -68,3 +70,14 @@
 
             (.write ostream nl-byte))
           (.endCopy ostream))))
+
+(defn upsert
+  "Using honeysql-postgres, construct a SQL string to do upserts with Postgres.
+
+  We expect the key(s) in the 'where' map to be primary keys or otherwise
+  raise the conflict to perform the update."
+  [table row where]
+  (hsql/format {:insert-into table
+                :values [(merge where row)]
+                :upsert {:on-conflict (keys where)
+                :do-update-set (keys row)}}))
