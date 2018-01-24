@@ -18,4 +18,9 @@
                              (str (hformat/to-sql k) " = "
                                   (hformat/to-sql v))))))
 
-(hformat/register-clause! :on-duplicate-key-update 225)
+;; This number is used to insert the clause towards the end of the constructed
+;; SQL string. honeysql-postgres was used as reference:
+;; https://github.com/nilenso/honeysql-postgres/blob/master/src/honeysql_postgres/format.clj#L19
+(def clause-order 225)
+
+(hformat/register-clause! :on-duplicate-key-update clause-order)
