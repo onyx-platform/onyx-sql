@@ -186,7 +186,7 @@
     (->SqlWriter pool insert-fn)))
 
 (defrecord SqlUpserter [pool table]
-    p/Plugin
+  p/Plugin
   (start [this event]
     this)
 
@@ -220,9 +220,9 @@
       (jdbc/with-db-transaction
         [conn pool]
         (doseq [row (:rows msg)]
-          (case (:subprotocol conn)
-            "postgresql" (jdbc/execute! conn (pgsql/upsert table row (:where msg)))
-            "mysql" (jdbc/execute! conn (mysql/upsert table row (:where msg)))
+          (condp #(str/starts-with? %2 %1) (.getJdbcUrl (:datasource conn))
+            "jdbc:postgresql" (jdbc/execute! conn (pgsql/upsert table row (:where msg)))
+            "jdbc:mysql" (jdbc/execute! conn (mysql/upsert table row (:where msg)))
             (jdbc/update! conn table row (sql-dsl/where (:where msg)))))))
     true))
 

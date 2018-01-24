@@ -80,4 +80,4 @@
   (hsql/format {:insert-into table
                 :values [(merge where row)]
                 :upsert {:on-conflict (keys where)
-                :do-update-set (keys row)}}))
+                         :do-update-set (keys row)}}))
