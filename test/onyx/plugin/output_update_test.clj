@@ -15,7 +15,9 @@
              [core-async :as ca]]
             [onyx.plugin
              [sql]
-             [core-async :refer [get-core-async-channels]]])
+             [core-async :refer [get-core-async-channels]]
+             [mysql :as mysql]
+             [pgsql :as pgsql]])
   (:import [com.mchange.v2.c3p0 ComboPooledDataSource]))
 
 (defn spool
@@ -75,6 +77,11 @@
    {:id 4 :word "Door"}
    {:id 5 :word "Surf board"}])
 
+(def all-words
+  ;; "Dog" and "Window" will be replaced by "Cat" and "Door" after upserts.
+  (concat [{:id 1 :word "Dog"}
+           {:id 4 :word "Window"}] words))
+
 (defn ensure-database! [db-user db-pass db-sub-base db-name]
   (let [db-spec {:classname "com.mysql.jdbc.Driver"
                  :subprotocol "mysql"
@@ -99,10 +106,12 @@
      cpool
      (vector (jdbc/create-table-ddl
               :words
-              [[:id :int]
+              [[:id :int "PRIMARY KEY"]
                [:word "VARCHAR(32)"]])))
-    (doseq [word words]
-      (jdbc/insert! cpool :words word))))
+    (doseq [word all-words]
+      (jdbc/execute! cpool (mysql/upsert :words
+                                         (dissoc word :id)
+                                         (dissoc word :word))))))
 
 (defn transform-word
   [word]
@@ -110,8 +119,8 @@
 
 (deftest sql-update-output-test
   (let [{:keys [env-config peer-config mysql-config]} (read-config
-                                                     (io/resource "config.edn")
-                                                     {:profile :test})
+                                                       (io/resource "config.edn")
+                                                       {:profile :test})
         {:keys [sql/username sql/password sql/subname sql/db-name]} mysql-config
         job (build-job username password subname db-name 10 1000)
         {:keys [in]} (get-core-async-channels job)
@@ -122,9 +131,25 @@
                      :password password})]
     (with-test-env [test-env [4 env-config peer-config]]
       (ensure-database! username password subname db-name)
-      (pipe (spool words) in true)
+      (pipe (spool all-words) in true)
       (onyx.test-helper/validate-enough-peers! test-env job)
       (->> (:job-id (onyx.api/submit-job peer-config job))
            (onyx.api/await-job-completion peer-config))
       (is (= (jdbc/query cpool (honey/format {:select [:*] :from [:words]}))
              (map transform-word words))))))
+
+(deftest mysql-upsert-query-string
+  (let [table "upsert_db"
+        row {:a "alpha" :b "beta"}
+        where {:id 1}]
+    (is (= (mysql/upsert table row where)
+           ["INSERT INTO ? (id, a, b) VALUES (1, ?, ?) ON DUPLICATE KEY UPDATE a = ?, b = ?"
+            "upsert_db" "alpha" "beta" "alpha" "beta"]))))
+
+(deftest postgres-upsert-query-string
+  (let [table "upsert_db"
+        row {:a "alpha" :b "beta"}
+        where {:id 1}]
+    (is (= (pgsql/upsert table row where)
+           ["INSERT INTO ? (id, a, b) VALUES (1, ?, ?) ON CONFLICT (id) DO UPDATE SET a = EXCLUDED.a, b = EXCLUDED.b"
+            "upsert_db" "alpha" "beta"]))))

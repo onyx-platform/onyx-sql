@@ -7,7 +7,7 @@ Onyx plugin providing read and write facilities for SQL databases with JDBC supp
 In your project file:
 
 ```clojure
-[org.onyxplatform/onyx-sql "0.12.5.0"]
+[org.onyxplatform/onyx-sql "0.12.6.0"]
 ```
 
 In your peer boot-up namespace:
@@ -115,19 +115,28 @@ Catalog entry:
  :sql/password "db-pass"
  :sql/table :table-name
  :sql/copy? boolean
- :sql/copy-fields [:first :second :third] 
+ :sql/copy-fields [:first :second :third]
  :onyx/batch-size batch-size
  :onyx/doc "Writes segments from the :rows keys to the SQL database"}
 ```
 
 When `sql/copy?` is true, attempts to import rows using the `COPY` statement for
-supported databases (currently only PostgreSQL). If enables, expects 
+supported databases (currently only PostgreSQL). If enables, expects
 `sql/copy-fields` to be a vector that determines the order in which columns will
 be rendered.
 
 ##### upsert-rows
 
-Upserts segments to a SQL database.
+Upserts segments to a SQL database. The `:where` map must include the primary
+key. If the primary key's value exists, an update will be performed. If it does
+not exist, an insert will be performed. Upserts work with MySQL and PostgreSQL
+databases.
+
+In the example below `:id` is the primary key.
+
+``` clojure
+{:rows [{:column1 "hello" :column2 "world}] :where {:id 1}}
+```
 
 Catalog entry:
 
