@@ -165,11 +165,8 @@
     true)
 
   (write-batch [this {:keys [onyx.core/write-batch]} replica messenger]
-
     (doseq [msg write-batch]
-      (jdbc/with-db-transaction
-        [conn pool]
-
+      (jdbc/with-db-transaction [conn pool]
         (insert-fn conn (:rows msg))))
     true))
 

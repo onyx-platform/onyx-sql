@@ -5,8 +5,8 @@ dependencies:
   pre:
     - sudo stop mysql
     - sudo /etc/init.d/postgresql stop
-    - docker run -e MYSQL_ROOT_PASSWORD="password" -p 3306:3306 -d mysql:latest
-    - docker run -e POSTGRES_PASSWORD=password -e POSTGRES_USER=postgresql -e POSTGRES_DB=onyx_input_test -p 5432:5432 -d library/postgres
+    - docker run -e MYSQL_ROOT_PASSWORD="password" -p 3306:3306 -d mysql:5.7.22
+    - docker run -e POSTGRES_PASSWORD=password -e POSTGRES_USER=postgresql -e POSTGRES_DB=onyx_input_test -p 5432:5432 -d library/postgres:10.4
 
 test:
   override:
