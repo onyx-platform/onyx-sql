@@ -41,23 +41,30 @@ Catalog entry:
  :onyx/plugin :onyx.plugin.sql/partition-keys
  :onyx/type :input
  :onyx/medium :sql
- :sql/classname "my.class.name"
- :sql/subprotocol "db-sub-protocol"
- :sql/subname "db-subname"
- :sql/user "db-user"
- :sql/password "db-pass"
- :sql/table :table-name
+ :sql/classname "my.class.name"         ; => "org.postgresql.Driver"
+ :sql/subprotocol "db-sub-protocol"     ; => "postgresql"
+ :sql/subname "db-subname"              ; => "//localhost:5432"
+ :sql/db-name "db-name"                 ; => "production"
+ :sql/user "db-user"                    ; => "bob"
+ :sql/password "db-pass"                ; => "p4ssw0rd"
+ ;; Should be a Clojure keyword
+ :sql/table :table-name                 ; => "my_table"
  :sql/id :column-to-split-by
- :sql/columns [:*]
- ;; Optional
- :sql/lower-bound selected-min
- ;; Optional
- :sql/upper-bound selected-max
+ :sql/columns [:*]                      ; => "[:id :sentence]"
+ 
+ ;; Optional (Required for onyx version 0.10+)
+ ;; Should be an integer representing first id (inclusive) to be requested from the table
+ :sql/lower-bound selected-min          ; => 0
+ 
+ ;; Optional (Required for onyx version 0.10+).
+ ;; Should be an integer representing last id (inclusive) to be requested from the table
+ :sql/upper-bound selected-max          ; => 100000000
+ 
  ;; 500 * 1000 = 50,000 rows
  ;; to be processed within :onyx/pending-timeout, 60s by default
  :sql/rows-per-segment 500
  :onyx/max-pending 1000
- :onyx/batch-size batch-size
+ :onyx/batch-size batch-size            ; => 500
  :onyx/max-peers 1
  :onyx/doc "Partitions a range of primary keys into subranges"}
 ```
